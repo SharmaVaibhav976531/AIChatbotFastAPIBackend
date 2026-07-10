@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles  
 from contextlib import asynccontextmanager
 from api.routes import router
 from app.config import APP_NAME, APP_VERSION, DESCRIPTION
@@ -37,3 +38,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Register the API routes
 app.include_router(router)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    return RedirectResponse(url="/static/index.html")

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot</title>
+    <!-- Link to our CSS file. Notice the /static/ prefix! -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Main Chat Container -->
+    <div class="chat-container">
+        
+        <!-- Header -->
+        <header class="chat-header">
+            <h2>AI Assistant</h2>
+            <button id="reset-btn" title="Reset Conversation">🗑️</button>
+        </header>
+        
+        <!-- Message Display Area -->
+        <div id="chat-box" class="chat-box">
+            <!-- JavaScript will inject messages here -->
+        </div>
+
+        <!-- Input Form -->
+        <form id="chat-form" class="chat-form">
+            <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" required>
+            <button type="submit" id="send-btn">Send</button>
+        </form>
+    </div>
+
+    <!-- Link to our JavaScript file -->
+    <script src="/static/script.js"></script>
+</body>
+</html>
