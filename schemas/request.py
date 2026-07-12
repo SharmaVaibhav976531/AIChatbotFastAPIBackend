@@ -1,3 +1,5 @@
+# schemas/request.py
+
 from pydantic import BaseModel, Field
 
 class ChatRequest(BaseModel):

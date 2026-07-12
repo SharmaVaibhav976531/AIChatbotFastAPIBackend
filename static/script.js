@@ -1,7 +1,4 @@
-// ══════════════════════════════════════════════════════════════════
-// FRONTEND LOGGING — Complete visibility into client-side operations
-// Open browser DevTools → Console tab to see these logs
-// ══════════════════════════════════════════════════════════════════
+// static/script.js
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('%c═══════════════════════════════════════════════════', 'color: #00bcd4; font-weight: bold');

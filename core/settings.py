@@ -1,3 +1,5 @@
+# core/settings.py
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import logging

@@ -1,3 +1,5 @@
+# app/dependencies.py
+
 from services.chatbot_service import ChatbotService
 import logging
 

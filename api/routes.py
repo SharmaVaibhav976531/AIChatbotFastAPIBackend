@@ -1,3 +1,5 @@
+# api/routes.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from openai import APITimeoutError, APIConnectionError, APIError, AuthenticationError
 from schemas.request import ChatRequest

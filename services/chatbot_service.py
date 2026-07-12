@@ -1,3 +1,5 @@
+# services/chatbot_service.py
+
 from openai import OpenAI, APIError, APITimeoutError, APIConnectionError, AuthenticationError
 from core.settings import get_settings
 import logging
