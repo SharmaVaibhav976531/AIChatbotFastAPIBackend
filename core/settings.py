@@ -2,6 +2,7 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+from pydantic import computed_field
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,23 @@ class Settings(BaseSettings):
     max_tokens: int = 2048
     top_p: float = 0.9
     frequency_penalty: float = 0.2
+
+    # --- Database Configuration ---
+    database_host: str = "localhost"
+    database_port: int = 5432
+    database_name: str = "chatbot_db"
+    database_user: str = "postgres"
+    database_password: str = "postgres"
+
+    @computed_field
+    @property
+    def database_url(self) -> str:
+        """
+        Constructs the SQLAlchemy connection URL.
+        We use 'postgresql+psycopg' to explicitly tell SQLAlchemy to use the psycopg v3 driver.
+        """
+        return f"postgresql+psycopg://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"
+
 
 
 # lru_cache ensures we only load the .env file once, improving performance

@@ -5,7 +5,6 @@ import sys
 import uuid
 import json
 from contextvars import ContextVar
-from datetime import datetime
 
 # ══════════════════════════════════════════════════════════════════
 # REQUEST ID — Tracks a single request across all layers
@@ -38,14 +37,8 @@ RESET   = "\033[0m"
 # ══════════════════════════════════════════════════════════════════
 class ColoredFormatter(logging.Formatter):
     """
-    Custom formatter that adds:
-    - ANSI colors based on log level
-    - Request ID from context variable
-    - Multi-line message support (prefix only on first line)
-
-    Format: TIMESTAMP | LEVEL | REQUEST_ID | MODULE | MESSAGE
+    Advanced formatter that injects Request IDs and applies level-based colors.
     """
-
     LEVEL_COLORS = {
         "DEBUG":    CYAN,
         "INFO":     GREEN,
@@ -55,23 +48,33 @@ class ColoredFormatter(logging.Formatter):
     }
 
     def format(self, record):
-        color = self.LEVEL_COLORS.get(record.levelname, "")
+        # Get color for the log level
+        color = self.LEVEL_COLORS.get(record.levelname, WHITE)
+        
+        # Fetch the request ID from the ContextVar
         req_id = request_id_var.get()
+        
+        # Format timestamp
         timestamp = self.formatTime(record, self.datefmt)
 
+        # Build the colorful prefix
         prefix = (
             f"{DIM}{timestamp}{RESET} | "
             f"{color}{BOLD}{record.levelname:<8}{RESET} | "
             f"{MAGENTA}{req_id:<12}{RESET} | "
-            f"{BLUE}{record.name}{RESET}"
+            f"{BLUE}{record.name:<25}{RESET}"
         )
 
+        # Process the log message
         msg = record.getMessage()
         lines = msg.split("\n")
         result = f"{prefix} | {lines[0]}"
+        
+        # Handle multi-line messages
         for line in lines[1:]:
             result += f"\n{line}"
 
+        # Handle exceptions (tracebacks)
         if record.exc_info and not record.exc_text:
             record.exc_text = self.formatException(record.exc_info)
         if record.exc_text:
@@ -84,24 +87,30 @@ class ColoredFormatter(logging.Formatter):
 # SETUP LOGGING — Call once at application startup
 # ══════════════════════════════════════════════════════════════════
 def setup_logging():
-    """Configure the entire logging system with colored output and debug level."""
+    """Configure the entire logging system with colored output."""
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(ColoredFormatter(datefmt="%Y-%m-%d %H:%M:%S"))
 
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(logging.INFO) 
     root.handlers.clear()
     root.addHandler(handler)
 
     # Suppress noisy third-party libraries
-    for lib in ["httpx", "openai", "httpcore", "uvicorn.access", "watchfiles", "asyncio"]:
+    # Added sqlalchemy.engine so raw SQL queries don't ruin the beautiful banners
+    noisy_libs = [
+        "httpx", "openai", "httpcore", "uvicorn.access", 
+        "watchfiles", "asyncio", "sqlalchemy.engine", "alembic"
+    ]
+    for lib in noisy_libs:
         logging.getLogger(lib).setLevel(logging.WARNING)
+        
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     logging.getLogger("uvicorn.error").setLevel(logging.INFO)
 
     logger = logging.getLogger(__name__)
     logger.info(f"{CYAN}{'═' * 60}{RESET}")
-    logger.info(f"{CYAN}{BOLD}  LOGGING SYSTEM INITIALIZED — DEBUG level for all app modules{RESET}")
+    logger.info(f"{CYAN}{BOLD}  LOGGING SYSTEM INITIALIZED — Production Colorful Logger{RESET}")
     logger.info(f"{CYAN}{'═' * 60}{RESET}")
 
 
@@ -110,17 +119,12 @@ def setup_logging():
 # ══════════════════════════════════════════════════════════════════
 def build_request_banner(req_id: str, method: str, path: str, client_ip: str,
                          body_text: str, timestamp: str) -> str:
-    """
-    Build the FRONTEND → BACKEND banner showing full request details.
-    """
+    """Build the FRONTEND → BACKEND banner showing full request details."""
     border = f"{CYAN}{BOLD}{'═' * 64}{RESET}"
     title  = f"{CYAN}{BOLD}{'FRONTEND  →  BACKEND':^64}{RESET}"
 
     lines = [
-        "",
-        border,
-        title,
-        border,
+        "", border, title, border,
         f"  {WHITE}Request ID{RESET}  : {MAGENTA}{BOLD}{req_id}{RESET}",
         f"  {WHITE}Timestamp{RESET}   : {DIM}{timestamp}{RESET}",
         f"  {WHITE}Method{RESET}      : {GREEN}{BOLD}{method}{RESET}",
@@ -128,12 +132,12 @@ def build_request_banner(req_id: str, method: str, path: str, client_ip: str,
         f"  {WHITE}Client IP{RESET}   : {DIM}{client_ip}{RESET}",
     ]
 
-    # Try to extract user message and pretty-print JSON
     if body_text:
         try:
             body_json = json.loads(body_text)
             pretty_body = json.dumps(body_json, indent=4, ensure_ascii=False)
-            user_msg = body_json.get("message", "")
+            user_msg = body_json.get("message", "") if isinstance(body_json, dict) else ""
+            
             if user_msg:
                 lines.append("")
                 lines.append(f"  {YELLOW}{BOLD}User Message:{RESET}")
@@ -157,53 +161,44 @@ def build_request_banner(req_id: str, method: str, path: str, client_ip: str,
 
 def build_response_banner(req_id: str, status_code: int, duration_ms: float,
                           body_text: str) -> str:
-    """
-    Build the BACKEND → FRONTEND banner showing full response details.
-    """
+    """Build the BACKEND → FRONTEND banner showing full response details."""
     border = f"{MAGENTA}{BOLD}{'═' * 64}{RESET}"
     title  = f"{MAGENTA}{BOLD}{'BACKEND  →  FRONTEND':^64}{RESET}"
 
-    # Status color
     if status_code >= 500:
-        status_color = RED
-        status_label = f"{status_code} SERVER ERROR ❌"
+        status_color, status_label = RED, f"{status_code} SERVER ERROR ❌"
     elif status_code >= 400:
-        status_color = YELLOW
-        status_label = f"{status_code} CLIENT ERROR ⚠️"
+        status_color, status_label = YELLOW, f"{status_code} CLIENT ERROR ⚠️"
     elif status_code >= 300:
-        status_color = CYAN
-        status_label = f"{status_code} REDIRECT ↩️"
+        status_color, status_label = CYAN, f"{status_code} REDIRECT ↩️"
     else:
-        status_color = GREEN
-        status_label = f"{status_code} OK ✅"
+        status_color, status_label = GREEN, f"{status_code} OK ✅"
 
     lines = [
-        "",
-        border,
-        title,
-        border,
+        "", border, title, border,
         f"  {WHITE}Request ID{RESET}  : {MAGENTA}{BOLD}{req_id}{RESET}",
         f"  {WHITE}HTTP Status{RESET} : {status_color}{BOLD}{status_label}{RESET}",
         f"  {WHITE}Duration{RESET}    : {CYAN}{BOLD}{duration_ms:.1f}ms{RESET}",
     ]
 
-    # Pretty-print JSON response body
     if body_text:
         try:
             body_json = json.loads(body_text)
-            # Extract assistant reply if present
-            reply = body_json.get("reply", "")
-            if reply:
-                preview = reply[:200] + ("..." if len(reply) > 200 else "")
-                lines.append("")
-                lines.append(f"  {YELLOW}{BOLD}Assistant Response:{RESET}")
-                lines.append(f"  {WHITE}\"{preview}\"{RESET}")
+            
+            # Safely extract assistant reply if it's a dictionary
+            if isinstance(body_json, dict):
+                reply = body_json.get("reply", "")
+                if reply:
+                    preview = reply[:200] + ("..." if len(reply) > 200 else "")
+                    lines.append("")
+                    lines.append(f"  {YELLOW}{BOLD}Assistant Response:{RESET}")
+                    lines.append(f"  {WHITE}\"{preview}\"{RESET}")
 
             pretty_body = json.dumps(body_json, indent=4, ensure_ascii=False)
-            # Truncate very long response bodies in the banner
             body_lines = pretty_body.split("\n")
             if len(body_lines) > 20:
                 body_lines = body_lines[:18] + [f"    ... ({len(body_lines) - 18} more lines)"]
+                
             lines.append("")
             lines.append(f"  {WHITE}Response Body (JSON):{RESET}")
             for bl in body_lines:
