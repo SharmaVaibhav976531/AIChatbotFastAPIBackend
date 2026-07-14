@@ -1,40 +1,4 @@
 # services/auth_service.py
-# ══════════════════════════════════════════════════════════════════
-# AUTHENTICATION SERVICE — Business logic for signup, login, logout
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   This service encapsulates ALL authentication business logic.
-#   Routes should NEVER contain business logic — they only validate
-#   input and call the appropriate service method.
-#
-# HOW IT WORKS:
-#   Signup Flow:
-#     1. Validate that username and email are unique
-#     2. Hash the password using bcrypt
-#     3. Create the user in the database
-#     4. Generate JWT tokens
-#     5. Return user + tokens
-#
-#   Login Flow:
-#     1. Find user by username (or email)
-#     2. Verify password against stored hash
-#     3. Update last_login timestamp
-#     4. Generate JWT tokens
-#     5. Return tokens
-#
-#   Refresh Flow:
-#     1. Verify the refresh token
-#     2. Look up the user by ID from token claims
-#     3. Generate NEW access + refresh tokens
-#     4. Return tokens
-#
-# HOW IT CONNECTS:
-#   - Called by api/auth_routes.py
-#   - Uses UserRepository for database operations
-#   - Uses core/security.py for password hashing
-#   - Uses JWTService for token operations
-#
 
 import uuid
 import logging

@@ -1,6 +1,5 @@
 # app/config.py
 
-# Static application constants that don't change via environment variables
 import logging
 
 logger = logging.getLogger(__name__)

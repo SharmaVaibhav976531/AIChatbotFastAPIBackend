@@ -1,3 +1,5 @@
+# database/session.py
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from core.settings import get_settings

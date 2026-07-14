@@ -1,25 +1,4 @@
 # api/routes.py
-# ══════════════════════════════════════════════════════════════════
-# CORE CHAT ROUTES — Health, Chat, Reset, History
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   These are the ORIGINAL Phase 1/2 routes, now upgraded with authentication.
-#   The /chat, /history, and /reset endpoints now require authentication
-#   and operate on the user's own sessions.
-#
-# WHAT CHANGED IN PHASE 3:
-#   - Added get_current_active_user dependency to protected routes
-#   - Chat now accepts optional session_id to target a specific session
-#   - History loads from the user's current session (not a shared "guest")
-#   - Reset clears the user's current session (not a shared "guest")
-#   - /health remains PUBLIC (no auth required)
-#
-# HOW IT CONNECTS:
-#   - Registered in app/main.py (unchanged)
-#   - ChatbotService now accepts user and session_id parameters
-#
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from openai import APITimeoutError, APIConnectionError, APIError, AuthenticationError
 from schemas.request import ChatRequest

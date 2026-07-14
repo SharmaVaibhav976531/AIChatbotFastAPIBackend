@@ -1,17 +1,4 @@
 # services/user_service.py
-# ══════════════════════════════════════════════════════════════════
-# USER SERVICE — Profile management business logic
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Handles user profile operations (get profile, update profile).
-#   Separated from AuthService because authentication and user management
-#   are different concerns — SOLID's Single Responsibility Principle.
-#
-# HOW IT CONNECTS:
-#   - Called by api/auth_routes.py for GET /auth/me and PUT /auth/me
-#   - Uses UserRepository for database operations
-#
 
 import uuid
 import logging

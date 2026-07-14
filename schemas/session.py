@@ -1,16 +1,4 @@
 # schemas/session.py
-# ══════════════════════════════════════════════════════════════════
-# SESSION SCHEMAS — Request/Response validation for session endpoints
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   These schemas define the data contracts for chat session CRUD operations.
-#   Each user can have multiple sessions (like separate chat threads).
-#
-# HOW IT CONNECTS:
-#   - Used in api/session_routes.py for request/response validation
-#   - Maps directly to the ChatSession model in the database
-#
 
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime

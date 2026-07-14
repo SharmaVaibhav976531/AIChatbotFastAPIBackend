@@ -1,29 +1,4 @@
 # app/dependencies.py
-# ══════════════════════════════════════════════════════════════════
-# DEPENDENCY INJECTION — Central hub for all FastAPI dependencies
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   FastAPI's Depends() system allows us to inject services and
-#   authenticated user objects into route handlers automatically.
-#   This file is the SINGLE SOURCE OF TRUTH for all dependency providers.
-#
-# HOW IT WORKS:
-#   1. Repository dependencies: Inject DB session → create repository instance
-#   2. Service dependencies: Inject repositories → create service instance
-#   3. Auth dependencies: Extract JWT from header → verify → return user
-#
-# AUTHENTICATION FLOW:
-#   Request with "Authorization: Bearer <token>" header
-#     → get_current_user() extracts and verifies the token
-#     → Fetches the user from the database
-#     → Returns the User object to the route handler
-#     → If token is invalid/missing → 401 Unauthorized
-#
-# HOW IT CONNECTS:
-#   - Used by api/routes.py, api/auth_routes.py, api/session_routes.py
-#   - Each route declares its dependencies via Depends()
-#
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer

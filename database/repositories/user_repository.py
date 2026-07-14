@@ -1,3 +1,5 @@
+# database/repositories/user_repository.py
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from database.models.user import User

@@ -1,21 +1,4 @@
 # services/session_service.py
-# ══════════════════════════════════════════════════════════════════
-# SESSION SERVICE — Chat session management business logic
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Manages the lifecycle of chat sessions (create, list, rename, delete).
-#   Enforces user-level isolation: a user can ONLY access their own sessions.
-#
-# HOW IT WORKS:
-#   - Every CRUD operation takes a user_id parameter
-#   - Before returning or modifying a session, it verifies ownership
-#   - This prevents User A from accessing User B's conversations
-#
-# HOW IT CONNECTS:
-#   - Called by api/session_routes.py
-#   - Uses ChatSessionRepository and MessageRepository
-#
 
 import uuid
 import logging

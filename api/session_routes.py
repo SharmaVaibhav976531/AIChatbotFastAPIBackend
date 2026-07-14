@@ -1,26 +1,4 @@
 # api/session_routes.py
-# ══════════════════════════════════════════════════════════════════
-# SESSION ROUTES — CRUD for chat session management
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Provides REST endpoints for managing chat sessions.
-#   Every endpoint requires authentication and enforces user isolation.
-#
-# ENDPOINTS:
-#   GET    /sessions              → List all user's sessions
-#   POST   /sessions              → Create a new session
-#   GET    /sessions/{id}         → Get a specific session
-#   PUT    /sessions/{id}         → Rename a session
-#   DELETE /sessions/{id}         → Delete a session
-#   GET    /sessions/{id}/messages → Get all messages in a session
-#
-# HOW IT CONNECTS:
-#   - Registered in app/main.py as: app.include_router(session_router)
-#   - Uses SessionService via dependency injection
-#   - All routes protected via get_current_active_user
-#
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
 from schemas.session import (

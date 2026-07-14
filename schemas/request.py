@@ -1,7 +1,4 @@
 # schemas/request.py
-# ══════════════════════════════════════════════════════════════════
-# REQUEST SCHEMAS — Input validation for chat endpoints
-# ══════════════════════════════════════════════════════════════════
 
 from pydantic import BaseModel, Field
 from uuid import UUID

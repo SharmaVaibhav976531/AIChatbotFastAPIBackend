@@ -1,26 +1,4 @@
 # api/auth_routes.py
-# ══════════════════════════════════════════════════════════════════
-# AUTHENTICATION ROUTES — Signup, Login, Logout, Refresh, Profile
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Defines all authentication-related HTTP endpoints.
-#   Routes are THIN — they validate input, call the service layer,
-#   and format the response. No business logic lives here.
-#
-# ENDPOINTS:
-#   POST /auth/signup          → Create a new account
-#   POST /auth/login           → Login and receive tokens
-#   POST /auth/refresh         → Refresh expired access token
-#   POST /auth/logout          → Client-side logout (stateless)
-#   GET  /auth/me              → Get current user profile
-#   PUT  /auth/me              → Update current user profile
-#
-# HOW IT CONNECTS:
-#   - Registered in app/main.py as: app.include_router(auth_router, prefix="/auth")
-#   - Uses AuthService, UserService via dependency injection
-#   - Protected routes use get_current_active_user dependency
-#
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from schemas.auth import (
