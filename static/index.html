@@ -6,32 +6,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chatbot</title>
+    <meta name="description" content="A production AI chatbot with multi-user authentication and session management">
+    <!-- Google Fonts for premium look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Link to our CSS file. Notice the /static/ prefix! -->
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
-    <!-- Main Chat Container -->
-    <div class="chat-container">
-        
-        <!-- Header -->
-        <header class="chat-header">
-            <h2>AI Assistant</h2>
-            <button id="reset-btn" title="Reset Conversation">🗑️</button>
-        </header>
-        
-        <!-- Message Display Area -->
-        <div id="chat-box" class="chat-box">
-            <!-- JavaScript will inject messages here -->
-        </div>
 
-        <!-- Input Form -->
-        <form id="chat-form" class="chat-form">
-            <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" required>
-            <button type="submit" id="send-btn">Send</button>
-        </form>
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- AUTH SCREENS (Login / Signup) -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">🤖</div>
+                <h1 id="auth-title">Welcome Back</h1>
+                <p id="auth-subtitle" class="auth-subtitle">Sign in to continue chatting</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-username">Username or Email</label>
+                    <input type="text" id="login-username" placeholder="Enter username or email" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <div id="login-error" class="auth-error" style="display:none;"></div>
+                <button type="submit" id="login-btn" class="auth-btn">Sign In</button>
+            </form>
+
+            <!-- Signup Form (hidden by default) -->
+            <form id="signup-form" class="auth-form" style="display:none;">
+                <div class="form-group">
+                    <label for="signup-username">Username</label>
+                    <input type="text" id="signup-username" placeholder="Choose a username" required minlength="3" maxlength="50" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" placeholder="Enter your email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
+                </div>
+                <div id="signup-error" class="auth-error" style="display:none;"></div>
+                <button type="submit" id="signup-btn" class="auth-btn">Create Account</button>
+            </form>
+
+            <div class="auth-toggle">
+                <span id="toggle-text">Don't have an account?</span>
+                <button id="toggle-auth-btn" class="toggle-btn">Sign Up</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- MAIN APP (Chat UI - hidden until authenticated) -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div id="app-container" class="app-container" style="display:none;">
+
+        <!-- Session Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>Chat Sessions</h3>
+                <button id="new-session-btn" class="new-session-btn" title="New Chat">+ New</button>
+            </div>
+            <div id="session-list" class="session-list">
+                <!-- Sessions will be injected by JS -->
+            </div>
+            <div class="sidebar-footer">
+                <div id="user-info" class="user-info">
+                    <span id="user-display" class="user-display">👤 User</span>
+                </div>
+                <button id="logout-btn" class="logout-btn" title="Logout">Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <!-- Header -->
+            <header class="chat-header">
+                <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
+                <h2 id="session-title">AI Assistant</h2>
+                <div class="header-actions">
+                    <button id="rename-session-btn" class="header-btn" title="Rename Session">✏️</button>
+                    <button id="delete-session-btn" class="header-btn" title="Delete Session">🗑️</button>
+                </div>
+            </header>
+            
+            <!-- Message Display Area -->
+            <div id="chat-box" class="chat-box">
+                <!-- JavaScript will inject messages here -->
+            </div>
+
+            <!-- Input Form -->
+            <form id="chat-form" class="chat-form">
+                <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" required>
+                <button type="submit" id="send-btn">Send</button>
+            </form>
+        </div>
     </div>
 
     <!-- Link to our JavaScript file -->
-    <script src="/static/script.js"></script>
+    <script src="/static/script.js?v=3"></script>
 </body>
 </html>

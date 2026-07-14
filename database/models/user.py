@@ -17,7 +17,19 @@ if TYPE_CHECKING:
 class User(Base):
     """
     Represents a user in the system.
-    Prepares the schema for future JWT Authentication.
+    Supports JWT Authentication with role-based flags.
+    
+    Fields:
+        id: UUID primary key (auto-generated)
+        username: Unique username for login
+        email: Unique email for login and communication
+        hashed_password: Bcrypt-hashed password (nullable for legacy 'guest' user)
+        is_active: Whether the user can log in (admin can deactivate)
+        is_verified: Whether the user has verified their email (future-ready)
+        is_superuser: Whether the user has admin privileges (future-ready)
+        last_login: Timestamp of the last successful login (audit trail)
+        created_at: Account creation timestamp
+        updated_at: Last modification timestamp
     """
     __tablename__ = "users"
 
@@ -27,8 +39,15 @@ class User(Base):
     # Authentication Fields
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True) # Nullable for now
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Nullable for legacy 'guest' user
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    
+    # Audit Fields
+    last_login: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     
     # Timestamps
     created_at: Mapped[datetime.datetime] = mapped_column(

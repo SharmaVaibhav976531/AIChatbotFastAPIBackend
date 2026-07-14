@@ -6,6 +6,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from api.routes import router
+from api.auth_routes import auth_router
+from api.session_routes import session_router
 from app.config import APP_NAME, APP_VERSION, DESCRIPTION
 from utils.helpers import (
     setup_logging, request_id_var, generate_request_id,
@@ -144,6 +146,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 logger.info(f"[SETUP] Registering API routes from api.routes...")
 app.include_router(router)
 logger.info(f"[SETUP] ✅ Routes registered: /health, /chat, /reset, /history")
+
+logger.info(f"[SETUP] Registering authentication routes...")
+app.include_router(auth_router, prefix="/auth")
+logger.info(f"[SETUP] ✅ Auth routes registered: /auth/signup, /auth/login, /auth/refresh, /auth/logout, /auth/me")
+
+logger.info(f"[SETUP] Registering session management routes...")
+app.include_router(session_router)
+logger.info(f"[SETUP] ✅ Session routes registered: /sessions (CRUD)")
 
 logger.info(f"[SETUP] Mounting static files at /static...")
 app.mount("/static", StaticFiles(directory="static"), name="static")

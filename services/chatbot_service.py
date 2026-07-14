@@ -1,4 +1,24 @@
 # services/chatbot_service.py
+# ══════════════════════════════════════════════════════════════════
+# CHATBOT SERVICE — Core AI business logic
+# ══════════════════════════════════════════════════════════════════
+#
+# WHY THIS FILE EXISTS:
+#   This is the CORE service that communicates with the AI model via OpenRouter.
+#   It handles the conversation flow: load history → call LLM → save response.
+#
+# PHASE 3 CHANGES:
+#   - Removed _get_default_user() — replaced with authenticated user injection
+#   - get_response() now accepts a User object and optional session_id
+#   - reset_conversation() and get_history() now accept a User object
+#   - The service no longer creates "guest" users — auth handles user lifecycle
+#   - ALL AI/LLM logic remains UNCHANGED
+#
+# HOW IT CONNECTS:
+#   - Called by api/routes.py
+#   - Routes inject the authenticated User via dependency injection
+#   - Uses repositories for database operations
+#
 
 import uuid
 import logging
@@ -15,7 +35,9 @@ logger = logging.getLogger(__name__)
 class ChatbotService:
     """
     Core service that communicates with the AI model via OpenRouter.
-    This service is now STATELESS. It relies entirely on the database for conversation history.
+    This service is STATELESS. It relies entirely on the database for conversation history.
+    
+    PHASE 3: Now accepts authenticated User objects instead of creating "guest" users.
     """
 
     def __init__(
@@ -39,45 +61,59 @@ class ChatbotService:
         self.message_repo = message_repo
 
     # =====================================================================
-    # HELPER METHODS (Future-proofing for Phase 3 Authentication)
+    # SESSION RESOLUTION
     # =====================================================================
-    def _get_default_user(self) -> User:
+    def _resolve_session(self, user: User, session_id: uuid.UUID | None = None) -> ChatSession:
         """
-        Retrieves or creates the default 'guest' user for unauthenticated requests.
-        FUTURE-PROOFING: In Phase 3, this will be replaced by the authenticated user from the JWT.
+        Resolve which session to use for the conversation.
+        
+        Priority:
+        1. If session_id is provided → use that specific session (verify ownership)
+        2. If no session_id → use the user's latest session
+        3. If user has no sessions → create a new one
+        
+        Args:
+            user: The authenticated user
+            session_id: Optional specific session to use
+            
+        Returns:
+            ChatSession: The resolved session
+            
+        Raises:
+            ValueError: If session_id is provided but not found or not owned
         """
-        user = self.user_repo.get_user_by_username("guest")
-        if not user:
-            logger.info("[SERVICE] Default 'guest' user not found. Creating...")
-            user = self.user_repo.create_user(username="guest", email="guest@chatbot.local")
-        return user
-
-    def _get_or_create_default_session(self, user_id: uuid.UUID) -> ChatSession:
-        """
-        Retrieves the active session for the user, or creates a new one.
-        FUTURE-PROOFING: In a multi-user app, the frontend will pass a session_id, 
-        and this method will fetch that specific session.
-        """
-        sessions = self.session_repo.get_sessions_by_user(user_id)
+        if session_id:
+            session = self.session_repo.get_session_by_id(session_id)
+            if not session:
+                raise ValueError(f"Session {session_id} not found")
+            if session.user_id != user.id:
+                raise ValueError("Access denied to this session")
+            return session
+        
+        # No session_id → get or create latest
+        sessions = self.session_repo.get_sessions_by_user(user.id)
         if not sessions:
-            logger.info(f"[SERVICE] No active session for user {user_id}. Creating new session...")
-            return self.session_repo.create_session(user_id=user_id, title="Default Chat")
+            logger.info(f"[SERVICE] No active session for user {user.username}. Creating new session...")
+            return self.session_repo.create_session(user_id=user.id, title="New Chat")
         return sessions[0]
 
     # =====================================================================
     # CORE BUSINESS LOGIC
     # =====================================================================
-    def get_response(self, user_message: str) -> str:
+    def get_response(self, user_message: str, user: User, session_id: uuid.UUID | None = None) -> str:
         """
         Processes a user message, persists it to DB, loads history, calls the LLM, 
         and persists the AI response.
+        
+        PHASE 3 CHANGES:
+        - Accepts a User object (from JWT auth) instead of creating a "guest"
+        - Accepts optional session_id to target a specific session
         """
         func_start = time.time()
 
-        # 1. Resolve User and Session
-        user = self._get_default_user()
-        session = self._get_or_create_default_session(user.id)
-        logger.info(f"[SERVICE] Processing message for session: {session.id}")
+        # 1. Resolve Session (using authenticated user)
+        session = self._resolve_session(user, session_id)
+        logger.info(f"[SERVICE] Processing message for user: {user.username}, session: {session.id}")
 
         # 2. Save User Message to DB (Done BEFORE calling LLM to prevent data loss on timeout)
         self.message_repo.create_message(
@@ -168,26 +204,35 @@ class ChatbotService:
             logger.error(f"[SERVICE] ❌ UNEXPECTED — {type(e).__name__}: {e}")
             raise
 
-    def reset_conversation(self):
-        """Clear all conversation history from the database."""
-        user = self._get_default_user()
+    def reset_conversation(self, user: User):
+        """
+        Clear the conversation history for the user's latest session.
+        
+        PHASE 3 CHANGES:
+        - Accepts a User object instead of looking up "guest"
+        """
         sessions = self.session_repo.get_sessions_by_user(user.id)
         
         if sessions:
             session_to_delete = sessions[0]
-            logger.info(f"[SERVICE] 🗑️ reset_conversation() → deleting session: {session_to_delete.id}")
+            logger.info(f"[SERVICE] 🗑️ reset_conversation() → deleting session: {session_to_delete.id} for user: {user.username}")
             self.session_repo.delete_session(session_to_delete.id)
         else:
-            logger.info("[SERVICE] 🗑️ reset_conversation() → no active session to reset")
+            logger.info(f"[SERVICE] 🗑️ reset_conversation() → no active session to reset for user: {user.username}")
 
-    def get_history(self) -> list[dict]:
-        """Return conversation history from the database, excluding the system prompt."""
-        user = self._get_default_user()
-        session = self._get_or_create_default_session(user.id)
+    def get_history(self, user: User, session_id: uuid.UUID | None = None) -> list[dict]:
+        """
+        Return conversation history from the database, excluding the system prompt.
+        
+        PHASE 3 CHANGES:
+        - Accepts a User object instead of looking up "guest"
+        - Supports optional session_id parameter
+        """
+        session = self._resolve_session(user, session_id)
         
         db_messages = self.message_repo.get_messages_by_session(session.id)
         
         # Format for the API response (exclude system prompt for cleaner UI)
         history = [{"role": msg.role, "content": msg.content} for msg in db_messages if msg.role != "system"]
-        logger.debug(f"[SERVICE] get_history() → returning {len(history)} messages from DB")
+        logger.debug(f"[SERVICE] get_history() → returning {len(history)} messages from DB for user: {user.username}")
         return history
