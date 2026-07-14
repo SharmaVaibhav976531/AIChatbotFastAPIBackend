@@ -53,70 +53,72 @@ app = FastAPI(
 @app.middleware("http")
 async def request_response_logging_middleware(request: Request, call_next):
     """
-    Captures and logs the full request/response lifecycle:
-    1. Generates a unique Request ID for tracing
-    2. Logs FRONTEND → BACKEND banner (with request body)
-    3. Processes the request through the application
-    4. Captures the response body
-    5. Logs BACKEND → FRONTEND banner (with response body)
+    Captures and logs the full request/response lifecycle.
     """
-    # Generate unique request ID and set it in context for all downstream loggers
+    # 1. Generate unique request ID
     req_id = generate_request_id()
-    request_id_var.set(req_id)
+    
+    # 2. CRITICAL FIX: Save the token so we can reset the ContextVar later
+    token = request_id_var.set(req_id)
 
-    method = request.method
-    path = request.url.path
-    client_ip = request.client.host if request.client else "unknown"
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    start_time = time.time()
+    try:
+        method = request.method
+        path = request.url.path
+        client_ip = request.client.host if request.client else "unknown"
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        start_time = time.time()
 
-    # Skip detailed logging for static file requests (CSS, JS, HTML, images)
-    is_static = path.startswith("/static")
+        # Skip detailed logging for static file requests (CSS, JS, HTML, images)
+        is_static = path.startswith("/static")
 
-    if is_static:
+        if is_static:
+            response = await call_next(request)
+            duration = (time.time() - start_time) * 1000
+            logger.debug(f"[STATIC] {method} {path} → {response.status_code} ({duration:.1f}ms)")
+            return response
+
+        # ── Read the request body for API endpoints ──
+        body_text = ""
+        if method in ("POST", "PUT", "PATCH"):
+            body_bytes = await request.body()
+            body_text = body_bytes.decode("utf-8", errors="replace")
+
+        # ── Log FRONTEND → BACKEND banner ──
+        banner = build_request_banner(req_id, method, path, client_ip, body_text, timestamp)
+        logger.info(banner)
+
+        # ── Process the request ──
         response = await call_next(request)
-        duration = (time.time() - start_time) * 1000
-        logger.debug(f"[STATIC] {method} {path} → {response.status_code} ({duration:.1f}ms)")
-        return response
+        duration_ms = (time.time() - start_time) * 1000
 
-    # ── Read the request body for API endpoints ──
-    body_text = ""
-    if method in ("POST", "PUT", "PATCH"):
-        body_bytes = await request.body()
-        body_text = body_bytes.decode("utf-8", errors="replace")
+        # ── Capture response body ──
+        response_body = b""
+        async for chunk in response.body_iterator:
+            response_body += chunk
+        response_text = response_body.decode("utf-8", errors="replace")
 
-    # ── Log FRONTEND → BACKEND banner ──
-    banner = build_request_banner(req_id, method, path, client_ip, body_text, timestamp)
-    logger.info(banner)
+        # ── Log BACKEND → FRONTEND banner ──
+        resp_banner = build_response_banner(req_id, response.status_code, duration_ms, response_text)
+        if response.status_code >= 500:
+            logger.error(resp_banner)
+        elif response.status_code >= 400:
+            logger.warning(resp_banner)
+        else:
+            logger.info(resp_banner)
 
-    # ── Process the request ──
-    response = await call_next(request)
-    duration_ms = (time.time() - start_time) * 1000
-
-    # ── Capture response body ──
-    response_body = b""
-    async for chunk in response.body_iterator:
-        response_body += chunk
-    response_text = response_body.decode("utf-8", errors="replace")
-
-    # ── Log BACKEND → FRONTEND banner ──
-    resp_banner = build_response_banner(req_id, response.status_code, duration_ms, response_text)
-    if response.status_code >= 500:
-        logger.error(resp_banner)
-    elif response.status_code >= 400:
-        logger.warning(resp_banner)
-    else:
-        logger.info(resp_banner)
-
-    # ── Reconstruct and return the response ──
-    # (We consumed the body_iterator above, so we must create a new Response)
-    return Response(
-        content=response_body,
-        status_code=response.status_code,
-        headers={k: v for k, v in response.headers.items()
-                 if k.lower() != "content-length"},
-        media_type=response.media_type,
-    )
+        # ── Reconstruct and return the response ──
+        # (We consumed the body_iterator above, so we must create a new Response)
+        return Response(
+            content=response_body,
+            status_code=response.status_code,
+            headers={k: v for k, v in response.headers.items() if k.lower() != "content-length"},
+            media_type=response.media_type,
+        )
+        
+    finally:
+        # 3. CRITICAL FIX: Reset the ContextVar to prevent request ID bleeding 
+        # into concurrent requests handled by the same async worker.
+        request_id_var.reset(token)
 
 
 # ══════════════════════════════════════════════════════════════════
