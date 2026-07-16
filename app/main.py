@@ -21,6 +21,7 @@ from core.limiter import limiter
 import logging
 import time
 from datetime import datetime
+from monitoring.metrics import REQUEST_COUNT, REQUEST_DURATION
 from core.settings import get_settings
 
 settings = get_settings()
@@ -77,18 +78,23 @@ async def request_response_logging_middleware(request: Request, call_next):
     # 2. CRITICAL FIX: Save the token so we can reset the ContextVar later
     token = request_id_var.set(req_id)
 
+    response = None
+    start_time = time.time()
+    status_code = 500
+    duration_ms = 0.0
+
     try:
         method = request.method
         path = request.url.path
         client_ip = request.client.host if request.client else "unknown"
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        start_time = time.time()
 
         # Skip detailed logging for static file requests (CSS, JS, HTML, images)
         is_static = path.startswith("/static")
 
         if is_static:
             response = await call_next(request)
+            status_code = response.status_code
             duration = (time.time() - start_time) * 1000
             logger.debug(f"[STATIC] {method} {path} → {response.status_code} ({duration:.1f}ms)")
             return response
@@ -105,6 +111,7 @@ async def request_response_logging_middleware(request: Request, call_next):
 
         # ── Process the request ──
         response = await call_next(request)
+        status_code = response.status_code
         duration_ms = (time.time() - start_time) * 1000
 
         # ── Capture response body ──
@@ -132,8 +139,21 @@ async def request_response_logging_middleware(request: Request, call_next):
         )
         
     finally:
-        # 3. CRITICAL FIX: Reset the ContextVar to prevent request ID bleeding 
-        # into concurrent requests handled by the same async worker.
+        endpoint = request.url.path 
+        if duration_ms == 0.0:
+            duration_ms = (time.time() - start_time) * 1000
+
+        REQUEST_COUNT.labels(
+            method=request.method,
+            endpoint=endpoint,
+            http_status=status_code
+        ).inc()
+        
+        REQUEST_DURATION.labels(
+            method=request.method,
+            endpoint=endpoint
+        ).observe(duration_ms / 1000.0) # Convert to seconds
+
         request_id_var.reset(token)
 
 

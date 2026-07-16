@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Any, Optional
 import redis
+from monitoring.metrics import CACHE_HIT_TOTAL, CACHE_MISS_TOTAL
 
 logger = logging.getLogger(__name__)
 
@@ -18,23 +19,23 @@ class CacheService:
         self.redis = redis_client
 
     def get(self, key: str) -> Optional[Any]:
-        """
-        Retrieve a value from the cache.
-        Returns None on cache miss OR if Redis is down.
-        """
         if not self.redis:
+            CACHE_MISS_TOTAL.inc()
             return None
         
         try:
             val = self.redis.get(key)
             if val:
                 logger.debug(f"[CACHE] HIT: {key}")
+                CACHE_HIT_TOTAL.inc()
                 return json.loads(val)
             
             logger.debug(f"[CACHE] MISS: {key}")
+            CACHE_MISS_TOTAL.inc()
             return None
         except Exception as e:
             logger.warning(f"[CACHE] Error reading {key}: {e}")
+            CACHE_MISS_TOTAL.inc()
             return None
 
     def set(self, key: str, value: Any, ttl: int = 300):
@@ -80,3 +81,5 @@ class CacheService:
                 logger.info(f"[CACHE] Invalidated {len(keys)} keys for user {user_id}")
         except Exception as e:
             logger.warning(f"[CACHE] Error invalidating cache for user {user_id}: {e}")
+
+

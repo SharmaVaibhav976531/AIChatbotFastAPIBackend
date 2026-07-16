@@ -41,9 +41,9 @@ async def signup(
 ):
     try:
         result = auth_service.signup(
-            username=request.username,
-            email=request.email,
-            password=request.password
+            username=signup_data.username,
+            email=signup_data.email,
+            password=signup_data.password
         )
         return SignupResponse(
             user=UserProfileResponse.model_validate(result["user"]),
@@ -99,11 +99,11 @@ async def login(
     summary="Refresh expired access token"
 )
 async def refresh_token(
-    request: RefreshTokenRequest,
+    refresh_data: RefreshTokenRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ):
     try:
-        result = auth_service.refresh_tokens(request.refresh_token)
+        result = auth_service.refresh_tokens(refresh_data.refresh_token)
         return TokenResponse(
             access_token=result["access_token"],
             refresh_token=result["refresh_token"]
@@ -192,7 +192,7 @@ async def get_profile(
     summary="Update current user profile"
 )
 async def update_profile(
-    request: UpdateProfileRequest,
+    profile_data: UpdateProfileRequest,
     user: User = Depends(get_current_active_user),
     user_service: UserService = Depends(get_user_service)
 ):
@@ -203,8 +203,8 @@ async def update_profile(
     try:
         updated_user = user_service.update_profile(
             user_id=user.id,
-            username=request.username,
-            email=request.email
+            username=profile_data.username,
+            email=profile_data.email
         )
         return UserProfileResponse.model_validate(updated_user)
     except ValueError as e:
