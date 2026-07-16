@@ -15,9 +15,15 @@ from utils.helpers import (
     CYAN, GREEN, YELLOW, RED, MAGENTA, BOLD, DIM, RESET, WHITE
 )
 from redis_client.client import redis_manager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from core.limiter import limiter
 import logging
 import time
 from datetime import datetime
+from core.settings import get_settings
+
+settings = get_settings()
 
 # Setup logging before anything else
 setup_logging()
@@ -53,6 +59,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting (SlowAPI + Redis)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ══════════════════════════════════════════════════════════════════
 # HTTP MIDDLEWARE — Logs every request/response lifecycle

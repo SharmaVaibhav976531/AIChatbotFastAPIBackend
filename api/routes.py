@@ -6,6 +6,8 @@ from schemas.response import ChatResponse, HealthResponse, HistoryResponse
 from services.chatbot_service import ChatbotService
 from database.models.user import User
 from app.dependencies import get_chatbot_service, get_current_active_user
+from core.limiter import limiter
+from fastapi import Request
 import logging
 import time
 from uuid import UUID
@@ -28,20 +30,13 @@ async def health_check():
 # POST /chat — Send message, get AI reply (PROTECTED)
 # ══════════════════════════════════════════════════════════════════
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK, tags=["Chat"])
+@limiter.limit("20/minute", key_func=lambda req: f"user:{req.state.user.id}")
 async def chat(
-    request: ChatRequest,
+    request: Request, # Required by SlowAPI
+    chat_data: ChatRequest,
     user: User = Depends(get_current_active_user),
     service: ChatbotService = Depends(get_chatbot_service)
 ):
-    """
-    Send a message and receive an AI response.
-    
-    PHASE 3 CHANGES:
-    - Now requires authentication
-    - Uses the authenticated user (not "guest")
-    - Accepts optional session_id in the request body
-    - If no session_id, uses the user's latest session (or creates one)
-    """
     try:
         reply = service.get_response(
             user_message=request.message,
