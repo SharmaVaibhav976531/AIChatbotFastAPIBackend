@@ -1,3 +1,5 @@
+# database/repositories/session_repository.py
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from database.models.session import ChatSession

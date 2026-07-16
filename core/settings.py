@@ -35,13 +35,26 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    # --- Phase 4: Redis & Celery Configuration ---
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_password: str | None = None
+    redis_db: int = 0
+    redis_url: str = "redis://localhost:6379/0"
+    
+    celery_broker_url: str = "redis://localhost:6379/1"
+    celery_result_backend: str = "redis://localhost:6379/2"
+    
+    cache_default_ttl: int = 300
+    rate_limit_per_minute: int = 60
+    rate_limit_login_per_minute: int = 5
+    
+    prometheus_enabled: bool = True
+    environment: str = "development"
+
     @computed_field
     @property
     def database_url(self) -> str:
-        """
-        Constructs the SQLAlchemy connection URL.
-        We use 'postgresql+psycopg' to explicitly tell SQLAlchemy to use the psycopg v3 driver.
-        """
         return f"postgresql+psycopg://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"
 
 

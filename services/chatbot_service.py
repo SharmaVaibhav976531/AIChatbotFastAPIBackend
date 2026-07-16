@@ -1,24 +1,4 @@
 # services/chatbot_service.py
-# ══════════════════════════════════════════════════════════════════
-# CHATBOT SERVICE — Core AI business logic
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   This is the CORE service that communicates with the AI model via OpenRouter.
-#   It handles the conversation flow: load history → call LLM → save response.
-#
-# PHASE 3 CHANGES:
-#   - Removed _get_default_user() — replaced with authenticated user injection
-#   - get_response() now accepts a User object and optional session_id
-#   - reset_conversation() and get_history() now accept a User object
-#   - The service no longer creates "guest" users — auth handles user lifecycle
-#   - ALL AI/LLM logic remains UNCHANGED
-#
-# HOW IT CONNECTS:
-#   - Called by api/routes.py
-#   - Routes inject the authenticated User via dependency injection
-#   - Uses repositories for database operations
-#
 
 import uuid
 import logging

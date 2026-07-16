@@ -1,18 +1,6 @@
 # services/user_service.py
-# ══════════════════════════════════════════════════════════════════
-# USER SERVICE — Profile management business logic
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Handles user profile operations (get profile, update profile).
-#   Separated from AuthService because authentication and user management
-#   are different concerns — SOLID's Single Responsibility Principle.
-#
-# HOW IT CONNECTS:
-#   - Called by api/auth_routes.py for GET /auth/me and PUT /auth/me
-#   - Uses UserRepository for database operations
-#
 
+from services.cache_service import CacheService
 import uuid
 import logging
 from database.repositories.user_repository import UserRepository
@@ -22,49 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 class UserService:
-    """
-    Handles user profile management operations.
-    """
-
-    def __init__(self, user_repo: UserRepository):
+    def __init__(self, user_repo: UserRepository, cache_service: CacheService):
         self.user_repo = user_repo
+        self.cache_service = cache_service
 
     def get_profile(self, user_id: uuid.UUID) -> User:
-        """
-        Retrieve a user's profile by ID.
-        
-        Args:
-            user_id: The user's UUID
-            
-        Returns:
-            User: The user object
-            
-        Raises:
-            ValueError: If user not found
-        """
         user = self.user_repo.get_user_by_id(user_id)
         if not user:
             raise ValueError("User not found")
         return user
 
     def update_profile(self, user_id: uuid.UUID, username: str | None = None, email: str | None = None) -> User:
-        """
-        Update a user's profile fields.
-        
-        Only updates the fields that are provided (not None).
-        Checks for uniqueness before updating username or email.
-        
-        Args:
-            user_id: The user's UUID
-            username: New username (optional)
-            email: New email (optional)
-            
-        Returns:
-            User: The updated user object
-            
-        Raises:
-            ValueError: If username/email is taken or user not found
-        """
         logger.info(f"[USER] Profile update for user: {user_id}")
 
         # Build update dict with only provided fields
@@ -92,5 +48,7 @@ class UserService:
         if not user:
             raise ValueError("User not found")
 
-        logger.info(f"[USER] ✅ Profile updated: {user.username}")
+        self.cache_service.invalidate_user_cache(str(user_id))
+        
+        logger.info(f"[USER] ✅ Profile updated and cache invalidated: {user.username}")
         return user

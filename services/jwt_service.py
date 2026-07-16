@@ -1,35 +1,4 @@
 # services/jwt_service.py
-# ══════════════════════════════════════════════════════════════════
-# JWT SERVICE — Token creation, verification, and refresh
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   This service handles all JWT (JSON Web Token) operations.
-#   JWTs are stateless tokens — the server doesn't store them.
-#   All the data needed to authenticate a user is encoded IN the token itself.
-#
-# HOW IT WORKS:
-#   Access Token (short-lived, 30 min):
-#     - Sent with every API request in the Authorization header
-#     - Contains: user_id, username, email, token type, expiration
-#     - When it expires, the client uses the refresh token to get a new one
-#
-#   Refresh Token (long-lived, 7 days):
-#     - Used ONLY to request a new access token
-#     - Contains: user_id, token type, expiration
-#     - Stored securely by the frontend (localStorage in our case)
-#
-# TOKEN FLOW:
-#   1. User logs in → server returns {access_token, refresh_token}
-#   2. Client sends access_token with every request
-#   3. Access token expires → client sends refresh_token to /auth/refresh
-#   4. Server validates refresh_token → issues new access_token
-#   5. Refresh token expires → user must log in again
-#
-# HOW IT CONNECTS:
-#   - Called by AuthService during login (create tokens) and refresh (verify + recreate)
-#   - Called by auth dependencies to verify the token on every protected request
-#
 
 import uuid
 import logging

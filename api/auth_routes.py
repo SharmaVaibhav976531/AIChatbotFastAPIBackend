@@ -1,26 +1,4 @@
 # api/auth_routes.py
-# ══════════════════════════════════════════════════════════════════
-# AUTHENTICATION ROUTES — Signup, Login, Logout, Refresh, Profile
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Defines all authentication-related HTTP endpoints.
-#   Routes are THIN — they validate input, call the service layer,
-#   and format the response. No business logic lives here.
-#
-# ENDPOINTS:
-#   POST /auth/signup          → Create a new account
-#   POST /auth/login           → Login and receive tokens
-#   POST /auth/refresh         → Refresh expired access token
-#   POST /auth/logout          → Client-side logout (stateless)
-#   GET  /auth/me              → Get current user profile
-#   PUT  /auth/me              → Update current user profile
-#
-# HOW IT CONNECTS:
-#   - Registered in app/main.py as: app.include_router(auth_router, prefix="/auth")
-#   - Uses AuthService, UserService via dependency injection
-#   - Protected routes use get_current_active_user dependency
-#
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from schemas.auth import (
@@ -33,6 +11,13 @@ from services.user_service import UserService
 from database.models.user import User
 from app.dependencies import get_auth_service, get_user_service, get_current_active_user
 import logging
+from core.limiter import limiter
+from fastapi import Request
+from services.cache_service import CacheService
+from app.dependencies import get_cache_service
+from core.settings import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
@@ -48,19 +33,12 @@ auth_router = APIRouter(tags=["Authentication"])
     status_code=status.HTTP_201_CREATED,
     summary="Create a new user account"
 )
+@limiter.limit("3/minute") # Max 3 signups per IP per minute
 async def signup(
-    request: SignupRequest,
+    request: Request, # Required by SlowAPI
+    signup_data: SignupRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Register a new user.
-    
-    - Validates input (username length, email format, password strength)
-    - Checks for duplicate username/email
-    - Hashes the password with bcrypt
-    - Creates the user in the database
-    - Returns user profile + JWT tokens (user is immediately logged in)
-    """
     try:
         result = auth_service.signup(
             username=request.username,
@@ -88,22 +66,16 @@ async def signup(
     status_code=status.HTTP_200_OK,
     summary="Login with username/email and password"
 )
+@limiter.limit("5/minute")
 async def login(
-    request: LoginRequest,
+    request: Request, 
+    login_data: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Authenticate a user and return JWT tokens.
-    
-    - Accepts username OR email in the 'username' field
-    - Verifies password against stored bcrypt hash
-    - Updates last_login timestamp
-    - Returns access_token + refresh_token
-    """
     try:
         result = auth_service.login(
-            username=request.username,
-            password=request.password
+            username=login_data.username,
+            password=login_data.password
         )
         return TokenResponse(
             access_token=result["access_token"],
@@ -130,15 +102,6 @@ async def refresh_token(
     request: RefreshTokenRequest,
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Issue new access + refresh tokens using a valid refresh token.
-    
-    This is the "silent re-authentication" flow:
-    1. Frontend detects 401 on a request
-    2. Frontend sends refresh_token to this endpoint
-    3. Server validates and issues new tokens
-    4. Frontend retries the original request with the new access_token
-    """
     try:
         result = auth_service.refresh_tokens(request.refresh_token)
         return TokenResponse(
@@ -188,13 +151,35 @@ async def logout(
     summary="Get current user profile"
 )
 async def get_profile(
-    user: User = Depends(get_current_active_user)
+    user: User = Depends(get_current_active_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    user_service: UserService = Depends(get_user_service)
 ):
     """
-    Return the currently authenticated user's profile.
-    The user is extracted from the JWT token automatically.
+    Returns the current user's profile.
+    Implements Cache-Aside pattern:
+    1. Check Redis cache.
+    2. If miss, fetch from DB and populate cache.
     """
-    return UserProfileResponse.model_validate(user)
+    cache_key = f"user:{user.id}:profile"
+    
+    # 1. Try to get from cache
+    cached_profile = cache_service.get(cache_key)
+    if cached_profile:
+        return UserProfileResponse.model_validate(cached_profile)
+    
+    # 2. Cache miss: Fetch from DB (via user_service or directly from the injected user)
+    # Since we already have the user object from the dependency, we just use it.
+    profile_data = UserProfileResponse.model_validate(user)
+    
+    # 3. Populate cache (TTL from settings, default 300s)
+    cache_service.set(
+        cache_key, 
+        profile_data.model_dump(mode="json"), 
+        ttl=settings.cache_default_ttl
+    )
+    
+    return profile_data
 
 
 # ══════════════════════════════════════════════════════════════════

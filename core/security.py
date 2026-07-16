@@ -1,24 +1,4 @@
 # core/security.py
-# ══════════════════════════════════════════════════════════════════
-# PASSWORD SECURITY — Bcrypt hashing and verification
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   This module provides a clean abstraction over the passlib library
-#   for hashing and verifying passwords. It uses the bcrypt algorithm,
-#   which is specifically designed for password hashing (slow by design,
-#   resistant to brute-force and rainbow table attacks).
-#
-# HOW IT WORKS:
-#   - hash_password("plaintext") → "$2b$12$..." (60-char bcrypt hash)
-#   - verify_password("plaintext", "$2b$12$...") → True/False
-#   - The hash includes a random salt, so hashing the same password
-#     twice produces different hashes (but both will verify correctly).
-#
-# HOW IT CONNECTS:
-#   - Used by AuthService during signup (hash) and login (verify)
-#   - Never called directly from routes — always through the service layer
-#
 
 from passlib.context import CryptContext
 import logging

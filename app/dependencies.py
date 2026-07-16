@@ -1,29 +1,4 @@
 # app/dependencies.py
-# ══════════════════════════════════════════════════════════════════
-# DEPENDENCY INJECTION — Central hub for all FastAPI dependencies
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   FastAPI's Depends() system allows us to inject services and
-#   authenticated user objects into route handlers automatically.
-#   This file is the SINGLE SOURCE OF TRUTH for all dependency providers.
-#
-# HOW IT WORKS:
-#   1. Repository dependencies: Inject DB session → create repository instance
-#   2. Service dependencies: Inject repositories → create service instance
-#   3. Auth dependencies: Extract JWT from header → verify → return user
-#
-# AUTHENTICATION FLOW:
-#   Request with "Authorization: Bearer <token>" header
-#     → get_current_user() extracts and verifies the token
-#     → Fetches the user from the database
-#     → Returns the User object to the route handler
-#     → If token is invalid/missing → 401 Unauthorized
-#
-# HOW IT CONNECTS:
-#   - Used by api/routes.py, api/auth_routes.py, api/session_routes.py
-#   - Each route declares its dependencies via Depends()
-#
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -36,15 +11,14 @@ from services.auth_service import AuthService
 from services.user_service import UserService
 from services.session_service import SessionService
 from services.jwt_service import JWTService
+from services.cache_service import CacheService
+from redis_client.client import get_redis_client
+from fastapi import Request, Depends, HTTPException, status
 import uuid
 import logging
 
 logger = logging.getLogger(__name__)
 
-# OAuth2PasswordBearer tells FastAPI:
-#   1. Where to find the token: Authorization: Bearer <token>
-#   2. Where the login endpoint is: /auth/login (for Swagger UI's "Authorize" button)
-#   3. auto_error=False on optional variant: Don't raise 401 automatically
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
@@ -88,11 +62,18 @@ def get_auth_service(
     """Dependency provider for AuthService."""
     return AuthService(user_repo)
 
+def get_cache_service(redis_client = Depends(get_redis_client)) -> CacheService:
+    """
+    Dependency provider for CacheService.
+    Injects the Redis client (which may be None if Redis is down).
+    """
+    return CacheService(redis_client)
+
 def get_user_service(
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
+    cache_service: CacheService = Depends(get_cache_service)
 ) -> UserService:
-    """Dependency provider for UserService."""
-    return UserService(user_repo)
+    return UserService(user_repo, cache_service)
 
 def get_session_service(
     session_repo: ChatSessionRepository = Depends(get_session_repository),
@@ -166,15 +147,13 @@ def get_current_user(
 
 
 def get_current_active_user(
+    request: Request,  # 1. Inject the Request object
     user: User = Depends(get_current_user)
 ) -> User:
-    """
-    Extends get_current_user with an active check.
-    Use this for routes that require the user to be active.
+    # 2. Attach the validated user to request.state 
+    # This allows SlowAPI's key_func to safely access req.state.user.id
+    request.state.user = user
     
-    An admin could deactivate a user's account (e.g., for abuse).
-    Their token would still be valid, but this check blocks them.
-    """
     if not user.is_active:
         logger.warning(f"[AUTH-DEP] Inactive user tried to access: {user.username}")
         raise HTTPException(
@@ -188,12 +167,6 @@ def get_optional_user(
     token: str | None = Depends(oauth2_scheme_optional),
     user_repo: UserRepository = Depends(get_user_repository)
 ) -> User | None:
-    """
-    Optional auth dependency — returns None if no token is provided.
-    
-    Use this for routes that work for both authenticated and anonymous users.
-    Example: The /health endpoint might show extra info for logged-in users.
-    """
     if not token:
         return None
     

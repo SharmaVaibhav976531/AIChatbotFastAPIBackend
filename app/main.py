@@ -14,9 +14,16 @@ from utils.helpers import (
     build_request_banner, build_response_banner,
     CYAN, GREEN, YELLOW, RED, MAGENTA, BOLD, DIM, RESET, WHITE
 )
+from redis_client.client import redis_manager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from core.limiter import limiter
 import logging
 import time
 from datetime import datetime
+from core.settings import get_settings
+
+settings = get_settings()
 
 # Setup logging before anything else
 setup_logging()
@@ -31,6 +38,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"{CYAN}{'═' * 60}{RESET}")
     logger.info(f"{GREEN}{BOLD}  [STARTUP] {APP_NAME} v{APP_VERSION}{RESET}")
     logger.info(f"{DIM}  {DESCRIPTION}{RESET}")
+    
+    # Initialize Redis Connection Pool
+    redis_manager.initialize()
+    
     logger.info(f"  {WHITE}Swagger UI{RESET} : {CYAN}http://127.0.0.1:8000/docs{RESET}")
     logger.info(f"  {WHITE}Chat UI{RESET}    : {CYAN}http://127.0.0.1:8000{RESET}")
     logger.info(f"{CYAN}{'═' * 60}{RESET}")
@@ -48,6 +59,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting (SlowAPI + Redis)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ══════════════════════════════════════════════════════════════════
 # HTTP MIDDLEWARE — Logs every request/response lifecycle

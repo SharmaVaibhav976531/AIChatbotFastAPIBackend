@@ -1,25 +1,4 @@
 # api/routes.py
-# ══════════════════════════════════════════════════════════════════
-# CORE CHAT ROUTES — Health, Chat, Reset, History
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   These are the ORIGINAL Phase 1/2 routes, now upgraded with authentication.
-#   The /chat, /history, and /reset endpoints now require authentication
-#   and operate on the user's own sessions.
-#
-# WHAT CHANGED IN PHASE 3:
-#   - Added get_current_active_user dependency to protected routes
-#   - Chat now accepts optional session_id to target a specific session
-#   - History loads from the user's current session (not a shared "guest")
-#   - Reset clears the user's current session (not a shared "guest")
-#   - /health remains PUBLIC (no auth required)
-#
-# HOW IT CONNECTS:
-#   - Registered in app/main.py (unchanged)
-#   - ChatbotService now accepts user and session_id parameters
-#
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from openai import APITimeoutError, APIConnectionError, APIError, AuthenticationError
 from schemas.request import ChatRequest
@@ -27,6 +6,8 @@ from schemas.response import ChatResponse, HealthResponse, HistoryResponse
 from services.chatbot_service import ChatbotService
 from database.models.user import User
 from app.dependencies import get_chatbot_service, get_current_active_user
+from core.limiter import limiter
+from fastapi import Request
 import logging
 import time
 from uuid import UUID
@@ -49,20 +30,13 @@ async def health_check():
 # POST /chat — Send message, get AI reply (PROTECTED)
 # ══════════════════════════════════════════════════════════════════
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK, tags=["Chat"])
+@limiter.limit("20/minute", key_func=lambda req: f"user:{req.state.user.id}")
 async def chat(
-    request: ChatRequest,
+    request: Request, # Required by SlowAPI
+    chat_data: ChatRequest,
     user: User = Depends(get_current_active_user),
     service: ChatbotService = Depends(get_chatbot_service)
 ):
-    """
-    Send a message and receive an AI response.
-    
-    PHASE 3 CHANGES:
-    - Now requires authentication
-    - Uses the authenticated user (not "guest")
-    - Accepts optional session_id in the request body
-    - If no session_id, uses the user's latest session (or creates one)
-    """
     try:
         reply = service.get_response(
             user_message=request.message,

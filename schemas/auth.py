@@ -1,18 +1,4 @@
 # schemas/auth.py
-# ══════════════════════════════════════════════════════════════════
-# AUTHENTICATION SCHEMAS — Request/Response validation for auth endpoints
-# ══════════════════════════════════════════════════════════════════
-#
-# WHY THIS FILE EXISTS:
-#   Pydantic V2 schemas enforce strict input validation and define
-#   the shape of API responses. They act as the contract between
-#   the frontend and backend — if the data doesn't match, FastAPI
-#   returns a 422 automatically.
-#
-# HOW IT CONNECTS:
-#   - Used in api/auth_routes.py as request body types and response_model
-#   - The schemas ensure passwords meet requirements, emails are valid, etc.
-#
 
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from datetime import datetime
