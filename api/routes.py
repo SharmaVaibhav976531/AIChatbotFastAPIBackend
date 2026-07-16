@@ -11,6 +11,11 @@ from fastapi import Request
 import logging
 import time
 from uuid import UUID
+from services.health_service import health_service
+from monitoring.metrics import get_metrics, get_metrics_content_type
+from core.settings import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,17 +25,26 @@ router = APIRouter()
 # ══════════════════════════════════════════════════════════════════
 # GET /health — System health check (PUBLIC — no auth required)
 # ══════════════════════════════════════════════════════════════════
-@router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK, tags=["System"])
+@router.get("/health", status_code=status.HTTP_200_OK, tags=["System"])
 async def health_check():
-    response = HealthResponse(status="healthy")
-    return response
+
+    health_data = health_service.get_overall_health()
+    
+    # If database is down, return 503 Service Unavailable
+    if health_data["status"] == "unhealthy":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=health_data
+        )
+    
+    return health_data
 
 
 # ══════════════════════════════════════════════════════════════════
 # POST /chat — Send message, get AI reply (PROTECTED)
 # ══════════════════════════════════════════════════════════════════
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK, tags=["Chat"])
-@limiter.limit("20/minute", key_func=lambda req: f"user:{req.state.user.id}")
+@limiter.limit("20/minute", key_func=lambda request: f"user:{request.state.user.id}")
 async def chat(
     request: Request, # Required by SlowAPI
     chat_data: ChatRequest,
@@ -39,9 +53,9 @@ async def chat(
 ):
     try:
         reply = service.get_response(
-            user_message=request.message,
+            user_message=chat_data.message,
             user=user,
-            session_id=getattr(request, 'session_id', None)
+            session_id=chat_data.session_id
         )
         return ChatResponse(reply=reply, model=service.settings.model_name)
     except AuthenticationError:
@@ -52,7 +66,10 @@ async def chat(
         raise HTTPException(status_code=503, detail="Could not connect to the AI service.")
     except APIError as e:
         raise HTTPException(status_code=502, detail=f"AI service returned an error: {str(e)}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"[CHAT ROUTE ERROR] Unexpected error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
@@ -92,3 +109,20 @@ async def get_history(
     """
     history = service.get_history(user=user)
     return HistoryResponse(history=history)
+
+
+# ══════════════════════════════════════════════════════════════════
+# GET /metrics — Prometheus Metrics Endpoint (PUBLIC/PROTECTED)
+# ══════════════════════════════════════════════════════════════════
+@router.get("/metrics", tags=["Monitoring"])
+async def metrics():
+    """
+    Exposes Prometheus metrics.
+    In production, this should be protected by network rules (e.g., only accessible 
+    from the Prometheus server IP or via a specific internal port).
+    """
+    from fastapi.responses import Response
+    return Response(
+        content=get_metrics(),
+        media_type=get_metrics_content_type()
+    )
