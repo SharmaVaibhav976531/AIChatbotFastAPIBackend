@@ -1,120 +1,321 @@
-<!-- static/index.html -->
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chatbot</title>
-    <meta name="description" content="A production AI chatbot with multi-user authentication and session management">
-    <!-- Google Fonts for premium look -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus AI | Production Chatbot</title>
+    <meta name="description" content="A production-grade, multi-user AI chatbot with RAG capabilities">
+    
+    <!-- Google Fonts: Inter for UI, JetBrains Mono for Code -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Link to our CSS file. Notice the /static/ prefix! -->
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/static/css/main.css?v=1">
 </head>
 <body>
+    <!-- Accessibility: Skip to main content -->
+    <a href="#chat-container" class="skip-link">Skip to main content</a>
+
+    <!-- Mobile backdrop for sidebars -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+    <!-- Keyboard shortcuts help modal -->
+    <div id="shortcuts-modal" class="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+        <div class="shortcuts-content">
+            <h2 id="shortcuts-title">
+                Keyboard Shortcuts
+                <button class="btn btn-ghost btn-sm" id="close-shortcuts-btn" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </h2>
+            
+            <div class="shortcut-group">
+                <h3>General</h3>
+                <div class="shortcut-item">
+                    <span>New chat</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">N</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>Search chats</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>Show shortcuts</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">/</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>Toggle theme</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">Shift</kbd><kbd class="kbd">L</kbd></div>
+                </div>
+            </div>
+            
+            <div class="shortcut-group">
+                <h3>Navigation</h3>
+                <div class="shortcut-item">
+                    <span>Toggle left sidebar</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">B</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>Toggle documents</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">D</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>Close modal/sidebar</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Esc</kbd></div>
+                </div>
+            </div>
+            
+            <div class="shortcut-group">
+                <h3>Chat</h3>
+                <div class="shortcut-item">
+                    <span>Send message</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Enter</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>New line</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Shift</kbd><kbd class="kbd">Enter</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span>Focus input</span>
+                    <div class="shortcut-keys"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">J</kbd></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container with ARIA live region for screen readers -->
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
 
     <!-- ══════════════════════════════════════════════════ -->
-    <!-- AUTH SCREENS (Login / Signup) -->
+    <!-- TOAST NOTIFICATION CONTAINER -->
     <!-- ══════════════════════════════════════════════════ -->
-    <div id="auth-container" class="auth-container">
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- AUTHENTICATION VIEW (Hidden by default if logged in) -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div id="auth-view" class="view auth-view hidden">
         <div class="auth-card">
             <div class="auth-header">
-                <div class="auth-logo">🤖</div>
-                <h1 id="auth-title">Welcome Back</h1>
-                <p id="auth-subtitle" class="auth-subtitle">Sign in to continue chatting</p>
+                <div class="auth-logo">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/></svg>
+                </div>
+                <h1 id="auth-title">Welcome to Nexus AI</h1>
+                <p id="auth-subtitle">Sign in to access your intelligent workspace</p>
             </div>
 
             <!-- Login Form -->
             <form id="login-form" class="auth-form">
                 <div class="form-group">
                     <label for="login-username">Username or Email</label>
-                    <input type="text" id="login-username" placeholder="Enter username or email" required autocomplete="username">
+                    <input type="text" id="login-username" placeholder="name@example.com" required autocomplete="username">
                 </div>
                 <div class="form-group">
                     <label for="login-password">Password</label>
-                    <input type="password" id="login-password" placeholder="Enter password" required autocomplete="current-password">
+                    <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
                 </div>
-                <div id="login-error" class="auth-error" style="display:none;"></div>
-                <button type="submit" id="login-btn" class="auth-btn">Sign In</button>
+                <div id="login-error" class="form-error hidden"></div>
+                <button type="submit" id="login-btn" class="btn btn-primary btn-block">
+                    <span class="btn-text">Sign In</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
             </form>
 
-            <!-- Signup Form (hidden by default) -->
-            <form id="signup-form" class="auth-form" style="display:none;">
+            <!-- Signup Form -->
+            <form id="signup-form" class="auth-form hidden">
                 <div class="form-group">
                     <label for="signup-username">Username</label>
-                    <input type="text" id="signup-username" placeholder="Choose a username" required minlength="3" maxlength="50" autocomplete="username">
+                    <input type="text" id="signup-username" placeholder="johndoe" required minlength="3" maxlength="50" autocomplete="username">
                 </div>
                 <div class="form-group">
                     <label for="signup-email">Email</label>
-                    <input type="email" id="signup-email" placeholder="Enter your email" required autocomplete="email">
+                    <input type="email" id="signup-email" placeholder="name@example.com" required autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="signup-password">Password</label>
                     <input type="password" id="signup-password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
                 </div>
-                <div id="signup-error" class="auth-error" style="display:none;"></div>
-                <button type="submit" id="signup-btn" class="auth-btn">Create Account</button>
+                <div id="signup-error" class="form-error hidden"></div>
+                <button type="submit" id="signup-btn" class="btn btn-primary btn-block">
+                    <span class="btn-text">Create Account</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
             </form>
 
             <div class="auth-toggle">
                 <span id="toggle-text">Don't have an account?</span>
-                <button id="toggle-auth-btn" class="toggle-btn">Sign Up</button>
+                <button type="button" id="toggle-auth-btn" class="btn-link">Sign Up</button>
             </div>
         </div>
     </div>
 
-
     <!-- ══════════════════════════════════════════════════ -->
-    <!-- MAIN APP (Chat UI - hidden until authenticated) -->
+    <!-- MAIN APP VIEW (3-Panel Layout) -->
     <!-- ══════════════════════════════════════════════════ -->
-    <div id="app-container" class="app-container" style="display:none;">
-
-        <!-- Session Sidebar -->
-        <aside id="sidebar" class="sidebar">
+    <div id="app-view" class="view app-view hidden">
+        
+        <!-- LEFT SIDEBAR: Navigation & Sessions -->
+        <aside id="left-sidebar" class="sidebar left-sidebar">
             <div class="sidebar-header">
-                <h3>Chat Sessions</h3>
-                <button id="new-session-btn" class="new-session-btn" title="New Chat">+ New</button>
-            </div>
-            <div id="session-list" class="session-list">
-                <!-- Sessions will be injected by JS -->
-            </div>
-            <div class="sidebar-footer">
-                <div id="user-info" class="user-info">
-                    <span id="user-display" class="user-display">👤 User</span>
+                <div class="brand">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/></svg>
+                    <span>Nexus AI</span>
                 </div>
-                <button id="logout-btn" class="logout-btn" title="Logout">Logout</button>
+                <button id="new-chat-btn" class="btn btn-sm btn-primary" title="New Chat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    New Chat
+                </button>
+            </div>
+            
+            <div class="sidebar-search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="search-chats" placeholder="Search conversations...">
+            </div>
+
+            <div id="session-list" class="sidebar-content session-list">
+                <!-- Sessions injected by JS -->
+                <div class="empty-state">
+                    <p>No conversations yet.</p>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="theme-toggle-btn" class="btn btn-ghost btn-sm" title="Toggle Theme">
+                    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="icon-moon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <div class="user-profile" id="user-profile-btn">
+                    <div class="avatar" id="user-avatar">U</div>
+                    <div class="user-info">
+                        <span class="user-name" id="user-display-name">User</span>
+                        <span class="user-status">Online</span>
+                    </div>
+                </div>
+                <button id="logout-btn" class="btn btn-ghost btn-sm" title="Logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
             </div>
         </aside>
 
-        <!-- Main Chat Area -->
-        <div class="chat-container">
-            <!-- Header -->
-            <header class="chat-header">
-                <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
-                <h2 id="session-title">AI Assistant</h2>
-                <div class="header-actions">
-                    <button id="rename-session-btn" class="header-btn" title="Rename Session">✏️</button>
-                    <button id="delete-session-btn" class="header-btn" title="Delete Session">🗑️</button>
+        <!-- CENTER PANEL: Main Chat Interface -->
+        <main class="main-content">
+            <header class="top-bar">
+                <button id="toggle-left-sidebar" class="btn btn-ghost btn-sm mobile-only">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <h2 id="current-session-title" class="session-title">New Conversation</h2>
+                <div class="top-bar-actions">
+                    <button id="rename-session-btn" class="btn btn-ghost btn-sm" title="Rename">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button id="delete-session-btn" class="btn btn-ghost btn-sm text-error" title="Delete">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                    <button id="toggle-right-sidebar" class="btn btn-ghost btn-sm" title="Documents & Context">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    </button>
                 </div>
             </header>
-            
-            <!-- Message Display Area -->
-            <div id="chat-box" class="chat-box">
-                <!-- JavaScript will inject messages here -->
+
+            <div id="chat-container" class="chat-container">
+                <!-- Welcome Screen (shown when empty) -->
+                <div id="welcome-screen" class="welcome-screen">
+                    <div class="welcome-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/></svg>
+                    </div>
+                    <h2>How can I help you today?</h2>
+                    <p class="welcome-subtitle">I can answer questions, analyze documents, and help you write code.</p>
+                </div>
+                
+                <!-- Messages will be injected here -->
+                <div id="messages-list" class="messages-list"></div>
+                
+                <!-- Typing Indicator -->
+                <div id="typing-indicator" class="typing-indicator hidden">
+                    <div class="avatar bot-avatar">AI</div>
+                    <div class="typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Input Form -->
-            <form id="chat-form" class="chat-form">
-                <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" required>
-                <button type="submit" id="send-btn">Send</button>
-            </form>
-        </div>
+            <div class="input-area">
+                <form id="chat-form" class="chat-form">
+                    <div class="input-wrapper">
+                        <textarea id="user-input" rows="1" placeholder="Message Nexus AI..." autocomplete="off"></textarea>
+                        <div class="input-actions">
+                            <button type="button" id="attach-file-btn" class="btn btn-ghost btn-sm" title="Attach Document">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            </button>
+                            <button type="submit" id="send-btn" class="btn btn-primary btn-sm" disabled>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="input-footer">
+                        <span>Nexus AI can make mistakes. Verify important information.</span>
+                    </div>
+                </form>
+            </div
+        </main>
+
+        <!-- RIGHT SIDEBAR: Context & Documents -->
+        <aside id="right-sidebar" class="sidebar right-sidebar hidden">
+            <div class="sidebar-header">
+                <h3>Context & Documents</h3>
+                <button id="close-right-sidebar" class="btn btn-ghost btn-sm">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- Document Upload Zone -->
+                <div id="drop-zone" class="drop-zone">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <p>Drag & drop files here</p>
+                    <span class="drop-zone-hint">or click to browse (PDF, DOCX, TXT, CSV)</span>
+                    <input type="file" id="file-input" class="hidden" multiple accept=".pdf,.docx,.txt,.csv,.md">
+                </div>
+
+                <!-- Upload Progress (Hidden by default) -->
+                <div id="upload-progress-container" class="upload-progress hidden">
+                    <div class="progress-header">
+                        <span id="upload-filename">document.pdf</span>
+                        <span id="upload-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span id="upload-status" class="progress-status">Uploading...</span>
+                </div>
+
+                <!-- Document List -->
+                <div class="section-title">
+                    <h4>Uploaded Documents</h4>
+                    <button id="refresh-docs-btn" class="btn btn-ghost btn-xs" title="Refresh">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
+                </div>
+                <div id="document-list" class="document-list">
+                    <div class="empty-state">
+                        <p>No documents uploaded yet.</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
     </div>
 
-    <!-- Link to our JavaScript file -->
-    <script src="/static/script.js?v=3"></script>
+    <!-- Modular JavaScript Entry Point -->
+    <script type="module" src="/static/js/markdown.js?v=1"></script>
+    <script type="module" src="/static/js/ui.js?v=1"></script>
+    <script type="module" src="/static/js/api.js?v=1"></script>
+    <script type="module" src="/static/js/chat.js?v=1"></script>
+    <script type="module" src="/static/js/documents.js?v=1"></script>
+    <script type="module" src="/static/js/app.js?v=1"></script>
+    <script type="module" src="/static/js/shortcuts.js?v=1"></script>
 </body>
 </html>

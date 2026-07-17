@@ -52,6 +52,20 @@ class Settings(BaseSettings):
     prometheus_enabled: bool = True
     environment: str = "development"
 
+    upload_directory: str = "./uploaded_files"
+    max_file_size_mb: int = 50
+    supported_file_types: str = ".pdf,.docx,.txt,.csv,.md"
+    ocr_enabled: bool = True
+    
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    
+    embedding_api_key: str = ""
+    embedding_base_url: str = "https://openrouter.ai/api/v1"
+    embedding_model: str = "text-embedding-3-small"
+    vector_dimension: int = 1536
+    pgvector_enabled: bool = True
+
     @computed_field
     @property
     def database_url(self) -> str:

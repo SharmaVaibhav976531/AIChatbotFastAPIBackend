@@ -1,5 +1,6 @@
 # app/dependencies.py
 
+from core.settings import get_settings
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -14,13 +15,31 @@ from services.jwt_service import JWTService
 from services.cache_service import CacheService
 from redis_client.client import get_redis_client
 from fastapi import Request, Depends, HTTPException, status
+from services.storage_service import StorageService
+from storage.local import LocalStorageProvider
+from services.loader_service import LoaderService
+from services.chunking_service import ChunkingService
+from services.metadata_service import MetadataService
+from services.embedding_service import EmbeddingService, embedding_provider
 import uuid
 import logging
 
 logger = logging.getLogger(__name__)
 
+loader_service = LoaderService() # Initialize the loader service (Singleton)
+settings = get_settings()  # Initialize the settings (Singleton)
+chunking_service = ChunkingService() # Initialize the chunking service (Singleton)
+
+# Initialize the services (Singletons)
+metadata_service = MetadataService()
+embedding_service = EmbeddingService(provider=embedding_provider)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+# Initialize the storage provider (Singleton pattern for the app lifecycle)
+storage_provider = LocalStorageProvider(base_dir=settings.upload_directory)
+storage_service = StorageService(provider=storage_provider)
 
 
 # =====================================================================
@@ -91,19 +110,6 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     user_repo: UserRepository = Depends(get_user_repository)
 ) -> User:
-    """
-    CORE AUTH DEPENDENCY — Extracts and validates the JWT from the request.
-    
-    This is the primary gate for protected routes. If the token is:
-      - Missing → 401 (handled by OAuth2PasswordBearer)
-      - Invalid/Expired → 401 (raised here)
-      - Valid → Returns the User object
-    
-    Usage in routes:
-        @router.get("/protected")
-        async def protected(user: User = Depends(get_current_user)):
-            return {"hello": user.username}
-    """
     # 1. Verify the token
     payload = JWTService.verify_access_token(token)
     if not payload:
@@ -198,3 +204,42 @@ def get_admin_user(
             detail="Admin access required"
         )
     return user
+
+
+def get_storage_service() -> StorageService:
+    """Dependency provider for StorageService."""
+    return storage_service
+
+def get_loader_service() -> LoaderService:
+    """Dependency provider for LoaderService."""
+    return loader_service
+
+def get_chunking_service() -> ChunkingService:
+    """Dependency provider for ChunkingService."""
+    return chunking_service
+
+def get_metadata_service() -> MetadataService:
+    """Dependency provider for MetadataService."""
+    return metadata_service
+
+def get_embedding_service() -> EmbeddingService:
+    """Dependency provider for EmbeddingService."""
+    return embedding_service
+
+
+# =====================================================================
+# Document Dependencies (Phase 5)
+# =====================================================================
+from database.repositories.document_repository import DocumentRepository
+from services.document_service import DocumentService
+
+def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
+    """Injects the DB session into the DocumentRepository."""
+    return DocumentRepository(db)
+
+def get_document_service(
+    doc_repo: DocumentRepository = Depends(get_document_repository),
+    storage_svc: StorageService = Depends(get_storage_service)
+) -> DocumentService:
+    """Dependency provider for DocumentService."""
+    return DocumentService(doc_repo, storage_svc)
