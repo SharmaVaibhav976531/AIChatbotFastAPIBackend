@@ -9,6 +9,7 @@ from database.repositories import UserRepository, ChatSessionRepository, Message
 from database.models.user import User
 from database.models.session import ChatSession
 from services.retrieval_service import RetrievalService
+from services.rag_service import RAGService
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class ChatbotService:
     Core service that communicates with the AI model via OpenRouter.
     This service is STATELESS. It relies entirely on the database for conversation history.
     
-    PHASE 3: Now accepts authenticated User objects instead of creating "guest" users.
+    PHASE 7: Integrated with RAGService for complete grounded RAG generation.
     """
 
     def __init__(
@@ -26,7 +27,8 @@ class ChatbotService:
         user_repo: UserRepository, 
         session_repo: ChatSessionRepository, 
         message_repo: MessageRepository,
-        retrieval_service: RetrievalService | None = None
+        retrieval_service: RetrievalService | None = None,
+        rag_service: RAGService | None = None
     ):
         self.settings = get_settings()
         self.client = OpenAI(
@@ -42,6 +44,7 @@ class ChatbotService:
         self.session_repo = session_repo
         self.message_repo = message_repo
         self.retrieval_service = retrieval_service
+        self.rag_service = rag_service
 
     # =====================================================================
     # SESSION RESOLUTION

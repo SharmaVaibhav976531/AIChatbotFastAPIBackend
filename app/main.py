@@ -198,6 +198,17 @@ logger.info(f"[SETUP] Registering document routes...")
 app.include_router(document_router)
 logger.info(f"[SETUP] ✅ Document routes registered: /documents (Upload, List, Delete)")
 
+from api.search_routes import router as search_router
+logger.info(f"[SETUP] Registering search & retrieval routes...")
+app.include_router(search_router)
+logger.info(f"[SETUP] ✅ Search routes registered: /search, /vector-search, /retrieve, /documents/{{id}}/chunks, /documents/{{id}}/metadata")
+
+from api.rag_routes import router as rag_router
+logger.info(f"[SETUP] Registering RAG debug & inspection routes...")
+app.include_router(rag_router)
+logger.info(f"[SETUP] ✅ RAG debug routes registered: /rag/debug, /rag/context, /rag/prompt, /rag/rerank")
+
+
 
 @app.get("/", include_in_schema=False)
 async def root_redirect():

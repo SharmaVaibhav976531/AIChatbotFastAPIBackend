@@ -24,7 +24,11 @@ export const chat = {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (this.userInput.value.trim()) {
-                    this.chatForm.dispatchEvent(new Event('submit'));
+                    if (typeof this.chatForm.requestSubmit === 'function') {
+                        this.chatForm.requestSubmit();
+                    } else {
+                        this.chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
                 }
             }
         });
@@ -38,7 +42,7 @@ export const chat = {
         this.welcomeScreen.classList.remove('hidden');
     },
 
-    appendMessage(role, text) {
+    appendMessage(role, text, sourcesData = null) {
         this.welcomeScreen.classList.add('hidden');
         
         const row = document.createElement('div');
@@ -53,21 +57,43 @@ export const chat = {
         // Use our secure markdown renderer
         content.innerHTML = md.render(text);
         
-        // Add copy button for bot messages
+        // Add copy button and Sources Used badge list for bot messages
         if (role === 'bot') {
+            const footerDiv = document.createElement('div');
+            footerDiv.className = 'message-footer-actions';
+            footerDiv.style.marginTop = '10px';
+            footerDiv.style.display = 'flex';
+            footerDiv.style.alignItems = 'center';
+            footerDiv.style.gap = '8px';
+            footerDiv.style.flexWrap = 'wrap';
+
             const copyBtn = document.createElement('button');
             copyBtn.className = 'btn btn-ghost btn-xs';
-            copyBtn.style.marginTop = '8px';
             copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
             copyBtn.onclick = () => {
                 navigator.clipboard.writeText(text);
-                // Simple visual feedback
                 copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
                 setTimeout(() => {
                     copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
                 }, 2000);
             };
-            content.appendChild(copyBtn);
+            footerDiv.appendChild(copyBtn);
+
+            // Add Sources Used indicator if search results exist
+            if (sourcesData && sourcesData.results && sourcesData.results.length > 0) {
+                const sourcesPill = document.createElement('button');
+                sourcesPill.className = 'btn btn-outline btn-xs sources-used-pill';
+                sourcesPill.innerHTML = `📚 Sources Used (${sourcesData.results.length})`;
+                sourcesPill.onclick = () => {
+                    const rightSidebar = document.getElementById('right-sidebar');
+                    const tabSourcesBtn = document.getElementById('tab-sources-btn');
+                    if (rightSidebar) rightSidebar.classList.remove('hidden');
+                    if (tabSourcesBtn) tabSourcesBtn.click();
+                };
+                footerDiv.appendChild(sourcesPill);
+            }
+
+            content.appendChild(footerDiv);
         }
 
         row.appendChild(avatar);

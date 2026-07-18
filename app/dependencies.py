@@ -22,7 +22,15 @@ from services.chunking_service import ChunkingService
 from services.metadata_service import MetadataService
 from services.embedding_service import EmbeddingService, embedding_provider
 from services.retrieval_service import RetrievalService
+from services.vector_search_service import VectorSearchService
+from services.reranking_service import RerankingService
+from services.context_builder_service import ContextBuilderService
+from services.grounding_service import GroundingService
+from services.prompt_builder_service import PromptBuilderService
+from services.rag_service import RAGService
 from database.repositories.embedding_repository import EmbeddingRepository
+from database.repositories.vector_repository import VectorRepository
+from database.repositories.search_repository import SearchRepository
 import uuid
 import logging
 
@@ -35,6 +43,12 @@ chunking_service = ChunkingService() # Initialize the chunking service (Singleto
 # Initialize the services (Singletons)
 metadata_service = MetadataService()
 embedding_service = EmbeddingService(provider=embedding_provider)
+
+# Phase 7 Stateless Services (Singletons)
+reranking_service = RerankingService()
+context_builder_service = ContextBuilderService()
+grounding_service = GroundingService()
+prompt_builder_service = PromptBuilderService()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -69,24 +83,77 @@ def get_embedding_repository(db: Session = Depends(get_db)) -> EmbeddingReposito
     """Injects the DB session into the EmbeddingRepository."""
     return EmbeddingRepository(db)
 
+def get_vector_repository(db: Session = Depends(get_db)) -> VectorRepository:
+    """Injects the DB session into the VectorRepository."""
+    return VectorRepository(db)
+
+def get_search_repository(db: Session = Depends(get_db)) -> SearchRepository:
+    """Injects the DB session into the SearchRepository."""
+    return SearchRepository(db)
+
 def get_retrieval_service(
     embedding_repo: EmbeddingRepository = Depends(get_embedding_repository),
 ) -> RetrievalService:
     """Dependency provider for RetrievalService."""
     return RetrievalService(embedding_repo, embedding_service)
 
+def get_cache_service(redis_client = Depends(get_redis_client)) -> CacheService:
+    """
+    Dependency provider for CacheService.
+    Injects the Redis client (which may be None if Redis is down).
+    """
+    return CacheService(redis_client)
+
+def get_vector_search_service(
+    vector_repo: VectorRepository = Depends(get_vector_repository),
+    cache_svc: CacheService = Depends(get_cache_service)
+) -> VectorSearchService:
+    """Dependency provider for Phase 6 VectorSearchService."""
+    return VectorSearchService(
+        vector_repo=vector_repo,
+        embedding_service=embedding_service,
+        cache_service=cache_svc
+    )
+
+def get_reranking_service() -> RerankingService:
+    return reranking_service
+
+def get_context_builder_service() -> ContextBuilderService:
+    return context_builder_service
+
+def get_grounding_service() -> GroundingService:
+    return grounding_service
+
+def get_prompt_builder_service() -> PromptBuilderService:
+    return prompt_builder_service
+
+def get_rag_service(
+    vector_search_svc: VectorSearchService = Depends(get_vector_search_service),
+    cache_svc: CacheService = Depends(get_cache_service)
+) -> RAGService:
+    """Dependency provider for Phase 7 RAGService."""
+    return RAGService(
+        vector_search_service=vector_search_svc,
+        reranking_service=reranking_service,
+        context_builder_service=context_builder_service,
+        grounding_service=grounding_service,
+        prompt_builder_service=prompt_builder_service,
+        cache_service=cache_svc
+    )
+
 def get_chatbot_service(
     user_repo: UserRepository = Depends(get_user_repository),
     session_repo: ChatSessionRepository = Depends(get_session_repository),
     message_repo: MessageRepository = Depends(get_message_repository),
-    retrieval_svc: RetrievalService = Depends(get_retrieval_service)
+    retrieval_svc: RetrievalService = Depends(get_retrieval_service),
+    rag_svc: RAGService = Depends(get_rag_service)
 ) -> ChatbotService:
     """
     Dependency provider for ChatbotService.
     FastAPI will instantiate this service PER REQUEST, injecting the 
     repositories which already contain the current request's DB session.
     """
-    return ChatbotService(user_repo, session_repo, message_repo, retrieval_svc)
+    return ChatbotService(user_repo, session_repo, message_repo, retrieval_svc, rag_svc)
 
 def get_auth_service(
     user_repo: UserRepository = Depends(get_user_repository)

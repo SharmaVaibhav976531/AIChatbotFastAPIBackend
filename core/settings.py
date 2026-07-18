@@ -72,6 +72,28 @@ class Settings(BaseSettings):
     vector_dimension: int = 768
     pgvector_enabled: bool = True
 
+    # --- PHASE 6: VECTOR SEARCH & RETRIEVAL CONFIGURATION ---
+    default_top_k: int = 5
+    default_similarity_threshold: float = 0.05
+    vector_distance_metric: str = "cosine"  # cosine, l2, inner_product
+    search_strategy: str = "vector"          # vector, hybrid_prepared
+    hybrid_search_enabled: bool = False
+    search_cache_enabled: bool = True
+    search_cache_ttl: int = 300
+
+    # --- PHASE 7: COMPLETE RAG PIPELINE CONFIGURATION ---
+    rag_enabled: bool = True
+    max_context_tokens: int = 3000
+    max_context_chunks: int = 5
+    enable_reranking: bool = True
+    reranking_strategy: str = "lightweight"  # lightweight, cross_encoder_prepared
+    grounding_strictness: str = "strict"      # strict, flexible
+    enable_source_tracking: bool = True
+    prompt_cache_ttl: int = 600
+    prompt_template: str = "default_grounded"
+
+
+
     @computed_field
     @property
     def database_url(self) -> str:
