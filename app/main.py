@@ -22,6 +22,7 @@ import logging
 import time
 from datetime import datetime
 from monitoring.metrics import REQUEST_COUNT, REQUEST_DURATION
+from api.document_routes import document_router
 from core.settings import get_settings
 
 settings = get_settings()
@@ -192,6 +193,10 @@ logger.info(f"[SETUP] ✅ Session routes registered: /sessions (CRUD)")
 logger.info(f"[SETUP] Mounting static files at /static...")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 logger.info(f"[SETUP] ✅ Static files mounted (index.html, style.css, script.js)")
+
+logger.info(f"[SETUP] Registering document routes...")
+app.include_router(document_router)
+logger.info(f"[SETUP] ✅ Document routes registered: /documents (Upload, List, Delete)")
 
 
 @app.get("/", include_in_schema=False)

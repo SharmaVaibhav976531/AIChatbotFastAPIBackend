@@ -2,7 +2,7 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
-from pydantic import computed_field
+from pydantic import computed_field, model_validator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,21 +42,51 @@ class Settings(BaseSettings):
     redis_db: int = 0
     redis_url: str = "redis://localhost:6379/0"
     
+    # --- CELERY CONFIGURATION ---
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
     
+    # --- CACHE CONFIGURATION ---
     cache_default_ttl: int = 300
     rate_limit_per_minute: int = 60
     rate_limit_login_per_minute: int = 5
     
+    # --- MISCELLANEOUS CONFIGURATION ---
     prometheus_enabled: bool = True
     environment: str = "development"
+    
+    # --- FILE UPLOAD CONFIGURATION ---
+    upload_directory: str = "./uploaded_files"
+    max_file_size_mb: int = 50
+    supported_file_types: str = ".pdf,.docx,.txt,.csv,.md"
+    ocr_enabled: bool = True
+    
+    # --- RAG CONFIGURATION ---
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    
+    # --- EMBEDDING CONFIGURATION ---
+    embedding_api_key: str = ""
+    embedding_base_url: str = "https://openrouter.ai/api/v1"
+    embedding_model: str = ""
+    vector_dimension: int = 768
+    pgvector_enabled: bool = True
 
     @computed_field
     @property
     def database_url(self) -> str:
         return f"postgresql+psycopg://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"
 
+    @model_validator(mode='after')
+    def validate_embedding_config(self) -> 'Settings':
+        if not self.embedding_model or not self.embedding_model.strip():
+            raise ValueError(
+                "EMBEDDING_MODEL is missing in .env. "
+                "Please set it to a valid model (e.g., 'nomic-ai/nomic-embed-text-v1.5')."
+            )
+        if not self.embedding_api_key:
+            logger.warning("[SETTINGS] EMBEDDING_API_KEY is empty. Embedding generation will fail.")
+        return self
 
 
 # lru_cache ensures we only load the .env file once, improving performance
@@ -69,7 +99,7 @@ def get_settings() -> Settings:
     key = settings.openrouter_api_key
     masked = f"***{key[-6:]}" if len(key) > 6 else "***"
 
-    logger.info(f"[SETTINGS] ✅ Configuration loaded successfully:")
+    logger.info(f"[SETTINGS] Configuration loaded successfully:")
     logger.info(f"  → API Key          : {masked}")
     logger.info(f"  → Model            : {settings.model_name}")
     logger.info(f"  → Base URL         : {settings.base_url}")
@@ -77,4 +107,6 @@ def get_settings() -> Settings:
     logger.info(f"  → Max Tokens       : {settings.max_tokens}")
     logger.info(f"  → Top P            : {settings.top_p}")
     logger.info(f"  → Frequency Penalty: {settings.frequency_penalty}")
+    logger.info(f"  → Embedding Model  : {settings.embedding_model}")
+    logger.info(f"  → Vector Dimension : {settings.vector_dimension}")
     return settings

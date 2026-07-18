@@ -13,27 +13,11 @@ from database.base import Base
 
 if TYPE_CHECKING:
     from database.models.session import ChatSession
+    from database.models.document import Document 
 
 class User(Base):
-    """
-    Represents a user in the system.
-    Supports JWT Authentication with role-based flags.
-    
-    Fields:
-        id: UUID primary key (auto-generated)
-        username: Unique username for login
-        email: Unique email for login and communication
-        hashed_password: Bcrypt-hashed password (nullable for legacy 'guest' user)
-        is_active: Whether the user can log in (admin can deactivate)
-        is_verified: Whether the user has verified their email (future-ready)
-        is_superuser: Whether the user has admin privileges (future-ready)
-        last_login: Timestamp of the last successful login (audit trail)
-        created_at: Account creation timestamp
-        updated_at: Last modification timestamp
-    """
     __tablename__ = "users"
 
-    # Primary Key: Native Postgres UUID
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     
     # Authentication Fields
@@ -60,6 +44,16 @@ class User(Base):
     # Relationships
     # cascade="all, delete-orphan": If the User is deleted, delete their sessions.
     sessions: Mapped[list["ChatSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+    # Relationships
+    sessions: Mapped[list["ChatSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    
+    # <--- ADD THIS RELATIONSHIP ---
+    documents: Mapped[list["Document"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
