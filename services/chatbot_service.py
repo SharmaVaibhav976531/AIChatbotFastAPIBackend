@@ -8,6 +8,7 @@ from core.settings import get_settings
 from database.repositories import UserRepository, ChatSessionRepository, MessageRepository
 from database.models.user import User
 from database.models.session import ChatSession
+from services.retrieval_service import RetrievalService
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,8 @@ class ChatbotService:
         self, 
         user_repo: UserRepository, 
         session_repo: ChatSessionRepository, 
-        message_repo: MessageRepository
+        message_repo: MessageRepository,
+        retrieval_service: RetrievalService | None = None
     ):
         self.settings = get_settings()
         self.client = OpenAI(
@@ -33,12 +35,13 @@ class ChatbotService:
             timeout=30.0,
             max_retries=3,
         )
-        self.system_prompt = "You are a helpful, concise AI assistant."
+        self.base_system_prompt = "You are a helpful, concise AI assistant."
         
         # Repositories injected via FastAPI Dependency Injection
         self.user_repo = user_repo
         self.session_repo = session_repo
         self.message_repo = message_repo
+        self.retrieval_service = retrieval_service
 
     # =====================================================================
     # SESSION RESOLUTION
@@ -78,6 +81,47 @@ class ChatbotService:
         return sessions[0]
 
     # =====================================================================
+    # RAG CONTEXT BUILDING
+    # =====================================================================
+    def _build_rag_prompt(self, user_message: str, user: User) -> str:
+        """
+        Build a system prompt augmented with relevant document context.
+        
+        If the user has uploaded documents and relevant chunks are found,
+        they are injected into the system prompt so the LLM can answer
+        based on the user's documents.
+        """
+        if not self.retrieval_service:
+            return self.base_system_prompt
+        
+        context = self.retrieval_service.retrieve_context(
+            query=user_message,
+            user_id=user.id,
+            top_k=5,
+            similarity_threshold=0.05
+        )
+        
+        if not context:
+            return self.base_system_prompt
+        
+        # Build RAG-augmented prompt
+        rag_prompt = (
+            f"{self.base_system_prompt}\n\n"
+            "You have access to the user's uploaded documents. "
+            "Use the following document excerpts to answer the user's question. "
+            "If the answer is found in the documents, cite the source filename. "
+            "If the documents don't contain relevant information, say so and answer from your general knowledge.\n\n"
+            "══════════════════════════════════════\n"
+            "DOCUMENT CONTEXT:\n"
+            "══════════════════════════════════════\n"
+            f"{context}\n"
+            "══════════════════════════════════════"
+        )
+        
+        logger.info(f"[SERVICE] 📄 RAG context injected into system prompt ({len(context)} chars)")
+        return rag_prompt
+
+    # =====================================================================
     # CORE BUSINESS LOGIC
     # =====================================================================
     def get_response(self, user_message: str, user: User, session_id: uuid.UUID | None = None) -> str:
@@ -103,11 +147,14 @@ class ChatbotService:
             model_name="N/A"
         )
 
-        # 3. Load Conversation History from DB
+        # 3. RAG Retrieval — Search uploaded documents for relevant context
+        system_prompt = self._build_rag_prompt(user_message, user)
+
+        # 4. Load Conversation History from DB
         db_messages = self.message_repo.get_messages_by_session(session.id)
         
-        # 4. Format Messages for OpenRouter
-        messages = [{"role": "system", "content": self.system_prompt}]
+        # 5. Format Messages for OpenRouter
+        messages = [{"role": "system", "content": system_prompt}]
         for msg in db_messages:
             messages.append({"role": msg.role, "content": msg.content})
 

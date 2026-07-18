@@ -21,6 +21,8 @@ from services.loader_service import LoaderService
 from services.chunking_service import ChunkingService
 from services.metadata_service import MetadataService
 from services.embedding_service import EmbeddingService, embedding_provider
+from services.retrieval_service import RetrievalService
+from database.repositories.embedding_repository import EmbeddingRepository
 import uuid
 import logging
 
@@ -63,17 +65,28 @@ def get_message_repository(db: Session = Depends(get_db)) -> MessageRepository:
 # Service Dependencies
 # =====================================================================
 
+def get_embedding_repository(db: Session = Depends(get_db)) -> EmbeddingRepository:
+    """Injects the DB session into the EmbeddingRepository."""
+    return EmbeddingRepository(db)
+
+def get_retrieval_service(
+    embedding_repo: EmbeddingRepository = Depends(get_embedding_repository),
+) -> RetrievalService:
+    """Dependency provider for RetrievalService."""
+    return RetrievalService(embedding_repo, embedding_service)
+
 def get_chatbot_service(
     user_repo: UserRepository = Depends(get_user_repository),
     session_repo: ChatSessionRepository = Depends(get_session_repository),
-    message_repo: MessageRepository = Depends(get_message_repository)
+    message_repo: MessageRepository = Depends(get_message_repository),
+    retrieval_svc: RetrievalService = Depends(get_retrieval_service)
 ) -> ChatbotService:
     """
     Dependency provider for ChatbotService.
     FastAPI will instantiate this service PER REQUEST, injecting the 
     repositories which already contain the current request's DB session.
     """
-    return ChatbotService(user_repo, session_repo, message_repo)
+    return ChatbotService(user_repo, session_repo, message_repo, retrieval_svc)
 
 def get_auth_service(
     user_repo: UserRepository = Depends(get_user_repository)
