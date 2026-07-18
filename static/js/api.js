@@ -181,6 +181,47 @@ class ApiClient {
     async deleteDocument(documentId) {
         return this.request(`/documents/${documentId}`, { method: 'DELETE' });
     }
+
+    // --- Phase 6: Vector Search & Retrieval API Endpoints ---
+
+    async search(query, topK = null, threshold = null, metric = null, filters = null) {
+        return this.request('/search', {
+            method: 'POST',
+            body: JSON.stringify({
+                query,
+                top_k: topK,
+                similarity_threshold: threshold,
+                distance_metric: metric,
+                filters
+            })
+        });
+    }
+
+    async vectorSearch(searchPayload) {
+        return this.request('/vector-search', {
+            method: 'POST',
+            body: JSON.stringify(searchPayload)
+        });
+    }
+
+    async retrieveContext(query, topK = null, threshold = null) {
+        return this.request('/retrieve', {
+            method: 'POST',
+            body: JSON.stringify({
+                query,
+                top_k: topK,
+                similarity_threshold: threshold
+            })
+        });
+    }
+
+    async getDocumentChunks(documentId, skip = 0, limit = 100) {
+        return this.request(`/documents/${documentId}/chunks?skip=${skip}&limit=${limit}`);
+    }
+
+    async getDocumentMetadata(documentId) {
+        return this.request(`/documents/${documentId}/metadata`);
+    }
 }
 
 // Export a singleton instance

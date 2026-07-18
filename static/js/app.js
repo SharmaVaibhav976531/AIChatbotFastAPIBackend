@@ -4,6 +4,8 @@ import { ui } from './ui.js';
 import { chat } from './chat.js';
 import { documents } from './documents.js'; 
 import { shortcuts } from './shortcuts.js'; 
+import { initRetrievalPanel } from './retrieval_panel.js';
+import { retrievalState } from './retrieval_state.js';
 
 const app = {
     currentSessionId: localStorage.getItem('current_session_id') || null,
@@ -46,9 +48,10 @@ const app = {
             document.getElementById('user-display-name').textContent = user.username;
             document.getElementById('user-avatar').textContent = user.username.charAt(0).toUpperCase();
             
-            // Initialize Chat Module
+            // Initialize Modules
             chat.init();
             documents.init(); 
+            initRetrievalPanel();
             
             // Load Sessions
             await this.loadSessions();
@@ -135,6 +138,8 @@ const app = {
         // Logout
         document.getElementById('logout-btn').addEventListener('click', () => {
             api.logout();
+            this.currentSessionId = null;
+            chat.clear();
             ui.toast.show('Logged out successfully', 'info');
             this.showAuth();
         });
@@ -163,12 +168,20 @@ const app = {
             chat.showTyping();
 
             try {
-                // 3. API Call
+                // 3. Vector Context Retrieval + Chat API Call
+                let searchResult = null;
+                try {
+                    searchResult = await api.retrieveContext(message);
+                    retrievalState.setSearchResult(searchResult);
+                } catch (searchErr) {
+                    console.warn('[APP] Retrieval context failed:', searchErr);
+                }
+
                 const data = await api.sendMessage(message, this.currentSessionId);
                 
                 // 4. Success UI
                 chat.hideTyping();
-                chat.appendMessage('bot', data.reply);
+                chat.appendMessage('bot', data.reply, searchResult);
                 
                 // 5. Refresh sessions to update message counts/titles
                 await this.loadSessions();
@@ -235,13 +248,27 @@ const app = {
             documents.stopPolling();
         });
 
-        // Mobile backdrop for sidebars
+        // Mobile backdrop & Desktop Collapse for left sidebar
         const backdrop = document.getElementById('sidebar-backdrop');
         const leftSidebar = document.getElementById('left-sidebar');
+        const collapseBtn = document.getElementById('collapse-sidebar-btn');
+
+        // Restore initial sidebar state
+        const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        if (isCollapsed && window.innerWidth > 768) {
+            leftSidebar?.classList.add('collapsed');
+        }
         
-        document.getElementById('toggle-left-sidebar').addEventListener('click', () => {
-            leftSidebar.classList.toggle('collapsed');
-            if (!leftSidebar.classList.contains('collapsed')) {
+        if (collapseBtn && leftSidebar) {
+            collapseBtn.addEventListener('click', () => {
+                const collapsed = leftSidebar.classList.toggle('collapsed');
+                localStorage.setItem('sidebar_collapsed', collapsed);
+            });
+        }
+
+        document.getElementById('toggle-left-sidebar')?.addEventListener('click', () => {
+            leftSidebar?.classList.toggle('collapsed');
+            if (leftSidebar && !leftSidebar.classList.contains('collapsed')) {
                 backdrop?.classList.add('active');
             } else {
                 backdrop?.classList.remove('active');
@@ -292,9 +319,25 @@ const app = {
     async loadSessions() {
         try {
             const data = await api.getSessions();
-            this.renderSessionList(data.sessions);
+            const userSessions = data.sessions || [];
             
-            // If we have a current session, load its messages
+            // Validate if stored currentSessionId belongs to user's sessions
+            const sessionExists = userSessions.some(s => s.id === this.currentSessionId);
+            if (!sessionExists) {
+                if (userSessions.length > 0) {
+                    this.currentSessionId = userSessions[0].id;
+                    localStorage.setItem('current_session_id', userSessions[0].id);
+                    this.currentSessionTitle.textContent = userSessions[0].title;
+                } else {
+                    this.currentSessionId = null;
+                    localStorage.removeItem('current_session_id');
+                    this.currentSessionTitle.textContent = 'New Conversation';
+                }
+            }
+
+            this.renderSessionList(userSessions);
+            
+            // Load messages if active session exists
             if (this.currentSessionId) {
                 await this.loadSessionMessages(this.currentSessionId);
             }
@@ -314,7 +357,9 @@ const app = {
         sessions.forEach(session => {
             const item = document.createElement('div');
             item.className = `session-item ${session.id === this.currentSessionId ? 'active' : ''}`;
+            item.title = session.title;
             item.innerHTML = `
+                <svg class="session-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 <span class="session-item-title">${this.escapeHtml(session.title)}</span>
             `;
             item.addEventListener('click', () => this.switchSession(session.id, session.title));
