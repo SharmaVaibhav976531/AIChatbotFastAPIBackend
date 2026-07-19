@@ -1,6 +1,7 @@
 # database/repositories/embedding_repository.py
 
 import uuid
+import time
 import logging
 from sqlalchemy.orm import Session, joinedload
 from database.models.embedding import Embedding
@@ -44,6 +45,7 @@ class EmbeddingRepository:
         Returns:
             List of dicts with chunk content, similarity score, and source metadata
         """
+        start_time = time.time()
         # pgvector cosine distance: 0 = identical, 2 = opposite
         # Cosine similarity = 1 - cosine_distance
         cosine_distance = Embedding.vector.cosine_distance(query_vector)
@@ -82,8 +84,17 @@ class EmbeddingRepository:
                     "similarity": round(similarity, 4)
                 })
 
-        logger.info(
-            f"[RETRIEVAL] Found {len(similar_chunks)}/{len(results)} chunks "
-            f"above threshold {similarity_threshold} for user {user_id}"
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        from utils.educational_logger import EducationalLogger
+        EducationalLogger.log_repo_operation(
+            repo_name="EmbeddingRepository",
+            method_name="search_similar",
+            purpose="Execute pgvector cosine distance similarity search filtered by user and session context.",
+            sql_op="SELECT JOIN",
+            table="embeddings ⋈ document_chunks ⋈ documents",
+            input_params={"user_id": str(user_id), "session_id": str(session_id) if session_id else "None", "top_k": top_k},
+            output_summary=f"Retrieved {len(similar_chunks)} chunks above threshold ({similarity_threshold})",
+            duration_ms=duration_ms
         )
+
         return similar_chunks
