@@ -106,6 +106,21 @@ class Settings(BaseSettings):
     compression_ratio: float = 0.7  # Target context compression ratio (0.0 to 1.0)
     advanced_rag_cache_ttl: int = 300
 
+    # --- PHASE 9: AI AGENT (LANGGRAPH & TOOLS) CONFIGURATION ---
+    enable_langgraph: bool = True
+    enable_planner: bool = True
+    enable_executor: bool = True
+    enable_memory: bool = True
+    enable_calculator: bool = True
+    enable_python_tool: bool = True
+    enable_database_tool: bool = True
+    enable_search_tool: bool = True
+    enable_multi_tool: bool = True
+
+    agent_max_steps: int = 5
+    agent_timeout: int = 30
+    max_tool_retries: int = 2
+
 
 
     @computed_field
@@ -113,8 +128,18 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return f"postgresql+psycopg://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"
 
+    @computed_field
+    @property
+    def upload_dir(self) -> str:
+        """Property alias for upload_directory for backward compatibility."""
+        return self.upload_directory
+
     @model_validator(mode='after')
     def validate_embedding_config(self) -> 'Settings':
+        if not self.upload_directory or not str(self.upload_directory).strip():
+            raise ValueError(
+                "Configuration Error: UPLOAD_DIRECTORY is missing or empty in Settings."
+            )
         if not self.embedding_model or not self.embedding_model.strip():
             raise ValueError(
                 "EMBEDDING_MODEL is missing in .env. "

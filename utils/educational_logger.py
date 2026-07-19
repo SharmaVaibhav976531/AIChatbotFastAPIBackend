@@ -3,24 +3,27 @@
 """
 Educational Logging Utility for FastAPI AI Chatbot
 
-Provides teacher-style formatted logging for terminal debugging:
-- File entry & responsibility banners
+Provides 100% real, teacher-style formatted logging for terminal debugging:
+- Real file entry & responsibility banners
 - Function entry / exit telemetry
 - Step-by-step function intent & call reasons
-- Database & Repository execution breakdown
-- End-to-end RAG pipeline visual steps
-- End-of-request visual execution tree
+- Database & Repository execution breakdown (SQL, latency, row counts)
+- Auth, Session, Message, Embedding, Vector Search & OpenRouter LLM telemetry
+- Dynamic End-of-Request execution tree based ONLY on what actually executed
+- Zero fake, misleading, or placeholder logs
 """
 
 import logging
 import time
-import inspect
-from typing import Any
+import traceback
+from typing import Any, Optional
 from utils.helpers import (
-    request_id_var, CYAN, GREEN, YELLOW, RED, MAGENTA, BLUE, WHITE, BOLD, DIM, RESET
+    request_id_var, execution_tree_var, record_execution_step,
+    CYAN, GREEN, YELLOW, RED, MAGENTA, BLUE, WHITE, BOLD, DIM, RESET
 )
 
 logger = logging.getLogger("educational")
+
 
 class EducationalLogger:
     """
@@ -52,6 +55,7 @@ class EducationalLogger:
             f"{border}\n"
         )
         logger.info(msg)
+        record_execution_step(f"File: {file_name}")
 
     @classmethod
     def log_function_enter(cls, file_name: str, class_name: str | None, func_name: str, purpose: str, input_params: dict[str, Any]) -> float:
@@ -71,6 +75,7 @@ class EducationalLogger:
             f"{border}"
         )
         logger.info(msg)
+        record_execution_step(f"{cls_str}{func_name}()")
         return start_time
 
     @classmethod
@@ -107,6 +112,37 @@ class EducationalLogger:
         logger.info(msg)
 
     @classmethod
+    def log_auth_event(cls, event_type: str, user_identifier: str, success: bool, detail: str = "") -> None:
+        """Logs actual authentication lifecycle events."""
+        status_str = f"{GREEN}SUCCESS{RESET}" if success else f"{RED}FAILED{RESET}"
+        msg = (
+            f"  {MAGENTA}🔑 AUTH EVENT{RESET} | {BOLD}{event_type}{RESET} | User: {WHITE}{user_identifier}{RESET} | "
+            f"Status: {status_str}" + (f" | {DIM}{detail}{RESET}" if detail else "")
+        )
+        logger.info(msg)
+        record_execution_step(f"Auth: {event_type} ({user_identifier})")
+
+    @classmethod
+    def log_session_event(cls, action: str, session_id: str, detail: str = "") -> None:
+        """Logs actual chat session lifecycle events."""
+        msg = (
+            f"  {CYAN}💬 SESSION EVENT{RESET} | {BOLD}{action}{RESET} | Session ID: {MAGENTA}{session_id}{RESET}"
+            + (f" | {DIM}{detail}{RESET}" if detail else "")
+        )
+        logger.info(msg)
+        record_execution_step(f"Session: {action} ({session_id[:8]}...)")
+
+    @classmethod
+    def log_message_event(cls, role: str, session_id: str, message_id: str, length: int) -> None:
+        """Logs message creation and history loading events."""
+        msg = (
+            f"  {GREEN}✉️ MESSAGE PERSISTED{RESET} | Role: {YELLOW}{role}{RESET} | Session: {MAGENTA}{session_id[:8]}...{RESET} | "
+            f"ID: {DIM}{message_id}{RESET} | Length: {CYAN}{length} chars{RESET}"
+        )
+        logger.info(msg)
+        record_execution_step(f"Message: Save {role} message")
+
+    @classmethod
     def log_repo_operation(cls, repo_name: str, method_name: str, purpose: str, sql_op: str, table: str, input_params: dict[str, Any], output_summary: str, duration_ms: float) -> None:
         """Explains repository operations and database interactions."""
         msg = (
@@ -121,6 +157,7 @@ class EducationalLogger:
             f"  {WHITE}Duration{RESET}     : {CYAN}{duration_ms} ms{RESET}"
         )
         logger.info(msg)
+        record_execution_step(f"{repo_name}.{method_name}() [{sql_op} on {table}]")
 
     @classmethod
     def log_db_query(cls, operation: str, table: str, reason: str, rows_returned: int, duration_ms: float) -> None:
@@ -132,23 +169,75 @@ class EducationalLogger:
         logger.info(msg)
 
     @classmethod
+    def log_embedding_execution(cls, model_name: str, input_count: int, dimensions: int, duration_ms: float, truncated_dim: Optional[int] = None) -> None:
+        """Logs vector embedding generation when it ACTUALLY occurs."""
+        trunc_str = f" → Truncated to {truncated_dim} dims" if truncated_dim else ""
+        msg = (
+            f"  {MAGENTA}🧠 EMBEDDING GENERATED{RESET} | Model: {WHITE}{model_name}{RESET} | "
+            f"Chunks: {GREEN}{input_count}{RESET} | Raw Dim: {CYAN}{dimensions}{RESET}{trunc_str} | Time: {CYAN}{duration_ms} ms{RESET}"
+        )
+        logger.info(msg)
+        record_execution_step(f"EmbeddingService (Model: {model_name})")
+
+    @classmethod
+    def log_vector_search_execution(cls, metric: str, top_k: int, threshold: float, retrieved_count: int, chunk_ids: list[str], duration_ms: float) -> None:
+        """Logs pgvector similarity search when it ACTUALLY occurs."""
+        ids_str = ", ".join(chunk_ids[:3]) + ("..." if len(chunk_ids) > 3 else "") if chunk_ids else "None"
+        msg = (
+            f"  {MAGENTA}🔍 VECTOR SEARCH{RESET} | Metric: {WHITE}{metric}{RESET} | Top-K: {YELLOW}{top_k}{RESET} | "
+            f"Threshold: {DIM}{threshold}{RESET} | Retrieved Chunks: {GREEN}{retrieved_count}{RESET} [{ids_str}] | Time: {CYAN}{duration_ms} ms{RESET}"
+        )
+        logger.info(msg)
+        record_execution_step(f"VectorSearch (Retrieved {retrieved_count} chunks)")
+
+    @classmethod
+    def log_prompt_builder_execution(cls, system_prompt_len: int, context_len: int, history_count: int) -> None:
+        """Logs prompt construction when RAG / System prompt is assembled."""
+        msg = (
+            f"  {YELLOW}📝 PROMPT ASSEMBLED{RESET} | System Prompt: {CYAN}{system_prompt_len} chars{RESET} | "
+            f"RAG Context: {GREEN}{context_len} chars{RESET} | History Messages: {MAGENTA}{history_count}{RESET}"
+        )
+        logger.info(msg)
+        record_execution_step(f"PromptBuilder (Context: {context_len} chars, History: {history_count})")
+
+    @classmethod
+    def log_openrouter_execution(cls, model_name: str, messages_count: int, total_tokens: Optional[int], duration_ms: float) -> None:
+        """Logs OpenRouter LLM completion call when it ACTUALLY occurs."""
+        token_str = f"Total Tokens: {CYAN}{total_tokens}{RESET} | " if total_tokens is not None else ""
+        msg = (
+            f"  {GREEN}🤖 OPENROUTER LLM CALL{RESET} | Model: {WHITE}{model_name}{RESET} | "
+            f"Messages: {YELLOW}{messages_count}{RESET} | {token_str}Duration: {CYAN}{duration_ms} ms{RESET}"
+        )
+        logger.info(msg)
+        record_execution_step(f"OpenRouter LLM ({model_name})")
+
+    @classmethod
+    def log_cache_event(cls, cache_key: str, event_type: str, ttl: Optional[int] = None) -> None:
+        """Logs Redis cache hits and misses when they ACTUALLY occur."""
+        color = GREEN if event_type.upper() == "HIT" else YELLOW
+        ttl_str = f" (TTL: {ttl}s)" if ttl is not None else ""
+        msg = (
+            f"  {BLUE}⚡ REDIS CACHE {event_type.upper()}{RESET} | Key: {WHITE}{cache_key}{RESET}{ttl_str}"
+        )
+        logger.info(msg)
+
+    @classmethod
     def log_rag_pipeline_banner(cls, query: str, session_id: str | None = None) -> None:
-        """Prints a visual overview banner when the RAG pipeline begins."""
+        """Prints a visual banner when the RAG retrieval pipeline begins."""
         border = f"{MAGENTA}{BOLD}{'═' * 64}{RESET}"
         msg = (
             f"\n{border}\n"
-            f"  {MAGENTA}{BOLD}ADVANCED RAG PIPELINE STARTED{RESET}\n"
+            f"  {MAGENTA}{BOLD}RAG RETRIEVAL PIPELINE STARTED{RESET}\n"
             f"  {MAGENTA}{'─' * 30}{RESET}\n"
             f"  {WHITE}User Query{RESET} : {WHITE}\"{query}\"{RESET}\n"
             f"  {WHITE}Session ID{RESET} : {MAGENTA}{session_id or 'Global'}{RESET}\n"
-            f"  {DIM}Flow: Query Expansion → HyDE → Multi-Query → Embedding → Vector Search → Parent-Child → Compression → Citations → Prompt → LLM{RESET}\n"
             f"{border}"
         )
         logger.info(msg)
 
     @classmethod
     def log_rag_step(cls, step_num: int, step_name: str, why_needed: str, input_data: Any, output_data: Any, duration_ms: float) -> None:
-        """Prints details for each specific stage of the RAG pipeline."""
+        """Prints details for each specific stage of the RAG pipeline when it ACTUALLY executes."""
         in_str = str(input_data)[:80]
         out_str = str(output_data)[:80]
         msg = (
@@ -170,14 +259,24 @@ class EducationalLogger:
         logger.info(msg)
 
     @classmethod
-    def log_execution_tree(cls, nodes: list[str]) -> None:
-        """Prints an end-of-request visual execution tree showing full flow."""
+    def log_execution_tree(cls, nodes: Optional[list[str]] = None) -> None:
+        """
+        Prints an end-of-request visual execution tree showing ONLY nodes that ACTUALLY executed.
+        If nodes is None, reads directly from the request's execution_tree_var ContextVar.
+        """
+        real_nodes = nodes
+        if real_nodes is None:
+            real_nodes = execution_tree_var.get()
+        
+        if not real_nodes:
+            return
+
         border = f"{CYAN}{BOLD}{'═' * 64}{RESET}"
-        tree_str = "\n".join([f"  {CYAN}↓{RESET} {WHITE}{node}{RESET}" if i > 0 else f"  {GREEN}●{RESET} {WHITE}{node}{RESET}" for i, node in enumerate(nodes)])
+        tree_str = "\n".join([f"  {CYAN}↓{RESET} {WHITE}{node}{RESET}" if i > 0 else f"  {GREEN}●{RESET} {WHITE}{node}{RESET}" for i, node in enumerate(real_nodes)])
         msg = (
             f"\n{border}\n"
-            f"  {CYAN}{BOLD}REQUEST EXECUTION TREE{RESET}\n"
-            f"  {CYAN}{'─' * 22}{RESET}\n"
+            f"  {CYAN}{BOLD}ACTUAL REQUEST EXECUTION TREE{RESET}\n"
+            f"  {CYAN}{'─' * 28}{RESET}\n"
             f"{tree_str}\n"
             f"{border}\n"
         )
@@ -197,6 +296,7 @@ class EducationalLogger:
             f"  {WHITE}Input Data{RESET}      : {DIM}{input_data}{RESET}\n"
             f"  {WHITE}Expected Result{RESET} : {GREEN}{expected}{RESET}\n"
             f"  {WHITE}Suggested Fix{RESET}   : {YELLOW}{fix_suggestion}{RESET}\n"
+            f"  {WHITE}Stack Trace{RESET}     :\n{RED}{traceback.format_exc()}{RESET}\n"
             f"{border}\n"
         )
         logger.error(msg)

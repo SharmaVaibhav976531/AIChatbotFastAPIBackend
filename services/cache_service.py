@@ -25,12 +25,15 @@ class CacheService:
         
         try:
             val = self.redis.get(key)
+            from utils.educational_logger import EducationalLogger
             if val:
                 logger.debug(f"[CACHE] HIT: {key}")
+                EducationalLogger.log_cache_event(key, "HIT")
                 CACHE_HIT_TOTAL.inc()
                 return json.loads(val)
             
             logger.debug(f"[CACHE] MISS: {key}")
+            EducationalLogger.log_cache_event(key, "MISS")
             CACHE_MISS_TOTAL.inc()
             return None
         except Exception as e:

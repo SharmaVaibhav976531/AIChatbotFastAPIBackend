@@ -10,10 +10,11 @@ from api.auth_routes import auth_router
 from api.session_routes import session_router
 from app.config import APP_NAME, APP_VERSION, DESCRIPTION
 from utils.helpers import (
-    setup_logging, request_id_var, generate_request_id,
+    setup_logging, request_id_var, execution_tree_var, generate_request_id,
     build_request_banner, build_response_banner,
     CYAN, GREEN, YELLOW, RED, MAGENTA, BOLD, DIM, RESET, WHITE
 )
+from utils.educational_logger import EducationalLogger
 from redis_client.client import redis_manager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -76,8 +77,9 @@ async def request_response_logging_middleware(request: Request, call_next):
     # 1. Generate unique request ID
     req_id = generate_request_id()
     
-    # 2. CRITICAL FIX: Save the token so we can reset the ContextVar later
-    token = request_id_var.set(req_id)
+    # 2. Save tokens for ContextVars
+    token_req = request_id_var.set(req_id)
+    token_tree = execution_tree_var.set([])
 
     response = None
     start_time = time.time()
@@ -99,6 +101,9 @@ async def request_response_logging_middleware(request: Request, call_next):
             duration = (time.time() - start_time) * 1000
             logger.debug(f"[STATIC] {method} {path} → {response.status_code} ({duration:.1f}ms)")
             return response
+
+        # Add initial HTTP route node to execution tree
+        execution_tree_var.get().append(f"Frontend (Browser HTTP {method} {path})")
 
         # ── Read the request body for API endpoints ──
         body_text = ""
@@ -130,8 +135,12 @@ async def request_response_logging_middleware(request: Request, call_next):
         else:
             logger.info(resp_banner)
 
+        execution_tree_var.get().append(f"Frontend (HTTP {response.status_code} Response)")
+
+        # Log REAL Request Execution Tree containing ONLY nodes that executed
+        EducationalLogger.log_execution_tree()
+
         # ── Reconstruct and return the response ──
-        # (We consumed the body_iterator above, so we must create a new Response)
         return Response(
             content=response_body,
             status_code=response.status_code,
@@ -153,9 +162,10 @@ async def request_response_logging_middleware(request: Request, call_next):
         REQUEST_DURATION.labels(
             method=request.method,
             endpoint=endpoint
-        ).observe(duration_ms / 1000.0) # Convert to seconds
+        ).observe(duration_ms / 1000.0)
 
-        request_id_var.reset(token)
+        request_id_var.reset(token_req)
+        execution_tree_var.reset(token_tree)
 
 
 # ══════════════════════════════════════════════════════════════════

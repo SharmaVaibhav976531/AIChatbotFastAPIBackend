@@ -97,4 +97,14 @@ class EmbeddingRepository:
             duration_ms=duration_ms
         )
 
+        chunk_ids = [c["document_id"][:8] for c in similar_chunks]
+        EducationalLogger.log_vector_search_execution(
+            metric="cosine_distance (<=>)",
+            top_k=top_k,
+            threshold=similarity_threshold,
+            retrieved_count=len(similar_chunks),
+            chunk_ids=chunk_ids,
+            duration_ms=duration_ms
+        )
+
         return similar_chunks

@@ -59,11 +59,19 @@ async def health_check():
     return health_data
 
 
+def get_user_rate_limit_key(request: Request) -> str:
+    user = getattr(request.state, "user", None)
+    if user and hasattr(user, "id"):
+        return f"user:{user.id}"
+    from slowapi.util import get_remote_address
+    return get_remote_address(request)
+
+
 # ══════════════════════════════════════════════════════════════════
 # POST /chat — Send message, get AI reply (PROTECTED)
 # ══════════════════════════════════════════════════════════════════
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK, tags=["Chat"])
-@limiter.limit("20/minute", key_func=lambda request: f"user:{request.state.user.id}")
+@limiter.limit("20/minute", key_func=get_user_rate_limit_key)
 async def chat(
     request: Request, # Required by SlowAPI
     chat_data: ChatRequest,
@@ -93,21 +101,6 @@ async def chat(
         )
         
         EducationalLogger.log_function_exit("api/routes.py", None, "chat", f"ChatResponse(reply='{reply[:40]}...')", start_time, "SUCCESS")
-        
-        # Educational Execution Tree Summary
-        EducationalLogger.log_execution_tree([
-            "Frontend (Browser HTTP POST /chat)",
-            "APIRouter (api/routes.py:chat)",
-            "OAuth2 Dependency (app/dependencies.py:get_current_active_user)",
-            "ChatbotService (services/chatbot_service.py:get_response)",
-            "RetrievalService / RAGService (services/retrieval_service.py:retrieve_context)",
-            "EmbeddingRepository (database/repositories/embedding_repository.py:search_similar)",
-            "PostgreSQL Database (embeddings + document_chunks + documents tables)",
-            "OpenRouter LLM API (Inference with injected RAG context)",
-            "MessageRepository (database/repositories/message_repository.py:create_message)",
-            "Frontend (HTTP 200 OK JSON ChatResponse)"
-        ])
-        
         return ChatResponse(reply=reply, model=service.settings.model_name)
     except AuthenticationError as e:
         EducationalLogger.log_educational_error("api/routes.py", "chat", 61, e, chat_data.message, "AI Reply", "Verify OPENROUTER_API_KEY in .env")

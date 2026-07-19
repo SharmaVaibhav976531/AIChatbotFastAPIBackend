@@ -1,8 +1,15 @@
 # services/chatbot_service.py
 
+"""
+Orchestrates complete AI chat lifecycle:
+Session loading → Multi-Tier Memory → Planner → Tool Router → Tools (Calculator, Python, Search, RAG) →
+Executor → Advanced Prompt Assembly → LLM Inference → Message Persistence.
+"""
+
 import uuid
 import logging
 import time
+from typing import Optional
 from openai import OpenAI, APIError, APITimeoutError, APIConnectionError, AuthenticationError
 from core.settings import get_settings
 from database.repositories import UserRepository, ChatSessionRepository, MessageRepository
@@ -10,41 +17,40 @@ from database.models.user import User
 from database.models.session import ChatSession
 from services.retrieval_service import RetrievalService
 from services.rag_service import RAGService
+from services.memory_service import MemoryService
+from agents.planner import PlannerAgent
+from agents.executor import ExecutorAgent
 
 from utils.educational_logger import EducationalLogger
 
 logger = logging.getLogger(__name__)
 
-# Log file execution details for architecture learning
 EducationalLogger.log_file_execution(
     file_name="services/chatbot_service.py",
-    purpose="Orchestrates complete AI chat lifecycle: session loading, RAG context retrieval, prompt assembly, OpenRouter LLM inference, and database message persistence.",
+    purpose="Orchestrates complete AI agent and chat lifecycle with memory and tool routing.",
     responsibilities=[
-        "Resolve active chat session or create new session for user",
-        "Persist user message to PostgreSQL via MessageRepository",
-        "Retrieve RAG context via RetrievalService/RAGService",
-        "Build grounded system prompt",
-        "Execute OpenRouter API completion call",
-        "Persist AI assistant response to PostgreSQL"
+        "Resolve active chat session for user",
+        "Persist user message to PostgreSQL",
+        "Retrieve multi-tiered AI memory",
+        "Generate execution plan via PlannerAgent",
+        "Route & execute subtasks via ExecutorAgent & ToolRouter",
+        "Assemble advanced prompt and invoke LLM API",
+        "Persist AI response to PostgreSQL"
     ]
 )
 
 
 class ChatbotService:
-    """
-    Core service that communicates with the AI model via OpenRouter.
-    This service is STATELESS. It relies entirely on the database for conversation history.
-    
-    PHASE 7: Integrated with RAGService for complete grounded RAG generation.
-    """
-
     def __init__(
         self, 
         user_repo: UserRepository, 
         session_repo: ChatSessionRepository, 
         message_repo: MessageRepository,
         retrieval_service: RetrievalService | None = None,
-        rag_service: RAGService | None = None
+        rag_service: RAGService | None = None,
+        memory_service: MemoryService | None = None,
+        planner_agent: PlannerAgent | None = None,
+        executor_agent: ExecutorAgent | None = None
     ):
         self.settings = get_settings()
         self.client = OpenAI(
@@ -55,35 +61,16 @@ class ChatbotService:
         )
         self.base_system_prompt = "You are a helpful, concise AI assistant."
         
-        # Repositories injected via FastAPI Dependency Injection
         self.user_repo = user_repo
         self.session_repo = session_repo
         self.message_repo = message_repo
         self.retrieval_service = retrieval_service
         self.rag_service = rag_service
+        self.memory_service = memory_service
+        self.planner_agent = planner_agent
+        self.executor_agent = executor_agent
 
-    # =====================================================================
-    # SESSION RESOLUTION
-    # =====================================================================
     def _resolve_session(self, user: User, session_id: uuid.UUID | None = None) -> ChatSession:
-        """
-        Resolve which session to use for the conversation.
-        
-        Priority:
-        1. If session_id is provided → use that specific session (verify ownership)
-        2. If no session_id → use the user's latest session
-        3. If user has no sessions → create a new one
-        
-        Args:
-            user: The authenticated user
-            session_id: Optional specific session to use
-            
-        Returns:
-            ChatSession: The resolved session
-            
-        Raises:
-            ValueError: If session_id is provided but not found or not owned
-        """
         if session_id:
             session = self.session_repo.get_session_by_id(session_id)
             if not session:
@@ -92,23 +79,13 @@ class ChatbotService:
                 raise ValueError("Access denied to this session")
             return session
         
-        # No session_id → get or create latest
         sessions = self.session_repo.get_sessions_by_user(user.id)
         if not sessions:
             logger.info(f"[SERVICE] No active session for user {user.username}. Creating new session...")
             return self.session_repo.create_session(user_id=user.id, title="New Chat")
         return sessions[0]
 
-    # =====================================================================
-    # RAG CONTEXT BUILDING
-    # =====================================================================
     def _build_rag_prompt(self, user_message: str, user: User, session_id: uuid.UUID | None = None) -> str:
-        """
-        Build a system prompt augmented with relevant document context for the current session.
-        
-        If the user has uploaded documents to this specific session and relevant chunks are found,
-        they are injected into the system prompt so the LLM can answer based on the session's documents.
-        """
         if not self.retrieval_service:
             return self.base_system_prompt
         
@@ -123,55 +100,26 @@ class ChatbotService:
         if not context:
             return self.base_system_prompt
         
-        # Build RAG-augmented prompt
         rag_prompt = (
             f"{self.base_system_prompt}\n\n"
-            "You have access to the user's uploaded documents. "
-            "Use the following document excerpts to answer the user's question. "
-            "If the answer is found in the documents, cite the source filename. "
-            "If the documents don't contain relevant information, say so and answer from your general knowledge.\n\n"
-            "══════════════════════════════════════\n"
-            "DOCUMENT CONTEXT:\n"
-            "══════════════════════════════════════\n"
+            "Use the following document excerpts to answer the user's question:\n\n"
             f"{context}\n"
-            "══════════════════════════════════════"
         )
-        
-        logger.info(f"[SERVICE] 📄 RAG context injected into system prompt for session {session_id} ({len(context)} chars)")
         return rag_prompt
 
-    # =====================================================================
-    # CORE BUSINESS LOGIC
-    # =====================================================================
     def get_response(self, user_message: str, user: User, session_id: uuid.UUID | None = None) -> str:
-        """
-        Processes a user message, persists it to DB, loads history, calls the LLM, 
-        and persists the AI response.
-        """
         start_time = EducationalLogger.log_function_enter(
             file_name="services/chatbot_service.py",
             class_name="ChatbotService",
             func_name="get_response",
-            purpose="Process user message, retrieve session RAG context, execute LLM inference, and persist conversation.",
+            purpose="Process user message through Agent workflow and return AI response.",
             input_params={"user": user.username, "session_id": session_id, "user_message": f"'{user_message[:30]}...'"}
         )
 
-        # 1. Resolve Session (using authenticated user)
-        EducationalLogger.log_function_intent(
-            target_func="ChatbotService._resolve_session",
-            reason="Verify existing active session or create a new session record for the user.",
-            input_desc=f"user_id={user.id}, requested_session_id={session_id}",
-            expected_output="Active ChatSession ORM object"
-        )
+        # 1. Resolve Session
         session = self._resolve_session(user, session_id)
 
-        # 2. Save User Message to DB (Done BEFORE calling LLM to prevent data loss on timeout)
-        EducationalLogger.log_function_intent(
-            target_func="MessageRepository.create_message",
-            reason="Persist user input prompt to PostgreSQL database before calling external APIs.",
-            input_desc=f"session_id={session.id}, role='user'",
-            expected_output="Created Message object"
-        )
+        # 2. Save User Message to DB
         self.message_repo.create_message(
             session_id=session.id,
             role="user",
@@ -179,38 +127,43 @@ class ChatbotService:
             model_name="N/A"
         )
 
-        # 3. RAG Retrieval — Search uploaded documents in this session for relevant context
-        EducationalLogger.log_function_intent(
-            target_func="ChatbotService._build_rag_prompt",
-            reason="Query vector repository for session-isolated context chunks and inject into system prompt.",
-            input_desc=f"query='{user_message[:30]}...', session_id={session.id}",
-            expected_output="System prompt augmented with retrieved document context"
-        )
-        system_prompt = self._build_rag_prompt(user_message, user, session_id=session.id)
+        # 3. Retrieve Memory Context (IF ENABLED)
+        user_mem = None
+        if self.settings.enable_memory and self.memory_service:
+            user_mem = self.memory_service.get_user_memory(user.id, session.id)
 
-        # 4. Load Conversation History from DB
-        EducationalLogger.log_function_intent(
-            target_func="MessageRepository.get_messages_by_session",
-            reason="Load previous conversation turns for memory context.",
-            input_desc=f"session_id={session.id}",
-            expected_output="List of historical Message objects"
-        )
+        # 4. Agent Planning & Execution (IF ENABLED)
+        tool_outputs_text = ""
+        if self.settings.enable_planner and self.planner_agent and self.executor_agent:
+            plan = self.planner_agent.create_plan(user_message)
+            tool_results = self.executor_agent.execute_plan(plan, user_id=user.id, session_id=session.id)
+            
+            tool_outputs = []
+            for r in tool_results:
+                if r.status == "success" and r.output:
+                    tool_outputs.append(f"[{r.tool_name.upper()} OUTPUT]: {r.output}")
+            if tool_outputs:
+                tool_outputs_text = "\n\n" + "\n".join(tool_outputs)
+
+        # 5. Build System Prompt & Load History
+        system_prompt = self._build_rag_prompt(user_message, user, session_id=session.id)
+        if tool_outputs_text:
+            system_prompt += tool_outputs_text
+
         db_messages = self.message_repo.get_messages_by_session(session.id)
         
-        # 5. Format Messages for OpenRouter
         messages = [{"role": "system", "content": system_prompt}]
         for msg in db_messages:
             messages.append({"role": msg.role, "content": msg.content})
 
-        try:
-            EducationalLogger.log_function_intent(
-                target_func="OpenAI.chat.completions.create",
-                reason="Execute external LLM inference call via OpenRouter API.",
-                input_desc=f"model='{self.settings.model_name}', context_messages={len(messages)}",
-                expected_output="ChatCompletion response object"
-            )
-            api_start = time.time()
+        EducationalLogger.log_prompt_builder_execution(
+            system_prompt_len=len(system_prompt),
+            context_len=len(system_prompt) - len(self.base_system_prompt),
+            history_count=len(db_messages)
+        )
 
+        try:
+            api_start = time.time()
             completion = self.client.chat.completions.create(
                 model=self.settings.model_name,
                 messages=messages,
@@ -221,23 +174,23 @@ class ChatbotService:
             )
 
             api_ms = (time.time() - api_start) * 1000
+            total_tokens = completion.usage.total_tokens if completion and completion.usage else None
+            EducationalLogger.log_openrouter_execution(
+                model_name=self.settings.model_name,
+                messages_count=len(messages),
+                total_tokens=total_tokens,
+                duration_ms=round(api_ms, 2)
+            )
 
             if completion and completion.choices:
-                reply = completion.choices[0].message.content
+                reply = completion.choices[0].message.content or ""
 
-                # 5. Save Assistant Message to DB
-                EducationalLogger.log_function_intent(
-                    target_func="MessageRepository.create_message",
-                    reason="Persist AI assistant generated reply to PostgreSQL database.",
-                    input_desc=f"session_id={session.id}, role='assistant', reply_length={len(reply)}",
-                    expected_output="Saved assistant Message object"
-                )
                 self.message_repo.create_message(
                     session_id=session.id,
                     role="assistant",
                     content=reply,
                     model_name=self.settings.model_name,
-                    token_count=completion.usage.total_tokens if completion and completion.usage else None
+                    token_count=total_tokens
                 )
 
                 EducationalLogger.log_function_exit("services/chatbot_service.py", "ChatbotService", "get_response", f"reply='{reply[:40]}...'", start_time, "SUCCESS")
@@ -246,54 +199,11 @@ class ChatbotService:
             EducationalLogger.log_function_exit("services/chatbot_service.py", "ChatbotService", "get_response", "No choices returned", start_time, "FAILED")
             return "[No choices returned by the API]"
 
-        except AuthenticationError:
-            logger.error("[SERVICE] ❌ AUTH ERROR — API key invalid/expired")
-            logger.error("  → Fix: Check OPENROUTER_API_KEY in .env file")
-            raise
-        except APITimeoutError:
-            logger.error("[SERVICE] ❌ TIMEOUT — No response within 30 seconds")
-            logger.error("  → Fix: Model may be overloaded, try again later")
-            raise
-        except APIConnectionError:
-            logger.error("[SERVICE] ❌ CONNECTION ERROR — Cannot reach OpenRouter")
-            logger.error("  → Fix: Check internet connection")
-            raise
-        except APIError as e:
-            logger.error(f"[SERVICE] ❌ API ERROR — {type(e).__name__}: {e}")
-            raise
+        except (APIError, APITimeoutError, APIConnectionError, AuthenticationError) as e:
+            EducationalLogger.log_educational_error("services/chatbot_service.py", "get_response", 195, e, user_message, "String reply", "Verify API Key and Network.")
+            logger.error(f"[SERVICE] OpenRouter API Error: {e}")
+            return f"Error communicating with AI service: {str(e)}"
         except Exception as e:
-            logger.error(f"[SERVICE] ❌ UNEXPECTED — {type(e).__name__}: {e}")
-            raise
-
-    def reset_conversation(self, user: User):
-        """
-        Clear the conversation history for the user's latest session.
-        
-        PHASE 3 CHANGES:
-        - Accepts a User object instead of looking up "guest"
-        """
-        sessions = self.session_repo.get_sessions_by_user(user.id)
-        
-        if sessions:
-            session_to_delete = sessions[0]
-            logger.info(f"[SERVICE] 🗑️ reset_conversation() → deleting session: {session_to_delete.id} for user: {user.username}")
-            self.session_repo.delete_session(session_to_delete.id)
-        else:
-            logger.info(f"[SERVICE] 🗑️ reset_conversation() → no active session to reset for user: {user.username}")
-
-    def get_history(self, user: User, session_id: uuid.UUID | None = None) -> list[dict]:
-        """
-        Return conversation history from the database, excluding the system prompt.
-        
-        PHASE 3 CHANGES:
-        - Accepts a User object instead of looking up "guest"
-        - Supports optional session_id parameter
-        """
-        session = self._resolve_session(user, session_id)
-        
-        db_messages = self.message_repo.get_messages_by_session(session.id)
-        
-        # Format for the API response (exclude system prompt for cleaner UI)
-        history = [{"role": msg.role, "content": msg.content} for msg in db_messages if msg.role != "system"]
-        logger.debug(f"[SERVICE] get_history() → returning {len(history)} messages from DB for user: {user.username}")
-        return history
+            EducationalLogger.log_educational_error("services/chatbot_service.py", "get_response", 200, e, user_message, "String reply", "Check system logs.")
+            logger.error(f"[SERVICE] Unexpected Error: {e}")
+            return f"An unexpected error occurred: {str(e)}"
