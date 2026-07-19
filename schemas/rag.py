@@ -73,9 +73,64 @@ class PromptPayload(BaseModel):
     formatted_messages: list[dict] = Field(default_factory=list, description="Messages payload ready for OpenAI SDK")
 
 
+class ExpandedQueryResponse(BaseModel):
+    """
+    Result model for QueryExpansionService.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    original_query: str = Field(..., description="User's original query")
+    expanded_queries: list[str] = Field(default_factory=list, description="Generated semantic query variations")
+    total_variations: int = Field(..., description="Total count of expanded queries")
+
+
+class HyDEResponse(BaseModel):
+    """
+    Result model for HyDEService (Hypothetical Document Embeddings).
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    query: str = Field(..., description="Original user query")
+    hypothetical_document: str = Field(..., description="Generated hypothetical document answer")
+    token_count: int = Field(default=0, description="Estimated token count of hypothetical answer")
+
+
+class Citation(BaseModel):
+    """
+    Structured citation reference for retrieved context chunks.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    document_name: str = Field(..., description="Filename of source document")
+    document_uuid: uuid.UUID = Field(..., description="UUID of source document")
+    chunk_uuid: uuid.UUID = Field(..., description="UUID of specific chunk")
+    chunk_number: int = Field(..., description="Index of chunk in document")
+    page_number: int | None = Field(default=None, description="Page number if available")
+    section: str | None = Field(default=None, description="Section heading if available")
+    heading: str | None = Field(default=None, description="Document heading if available")
+    similarity_score: float = Field(..., description="Normalized similarity score")
+    source_type: str = Field(default="document", description="MIME or document type")
+    filename: str = Field(..., description="Original filename")
+    quote_snippet: str = Field(..., description="Extracted quote snippet")
+
+
+class CompressedContext(BaseModel):
+    """
+    Result model for ContextCompressionService.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    original_tokens: int = Field(..., description="Token count before compression")
+    compressed_tokens: int = Field(..., description="Token count after compression")
+    compression_ratio: float = Field(..., description="Ratio of compressed to original tokens")
+    compressed_text: str = Field(..., description="Final compressed context string")
+    deduplicated_chunks: int = Field(..., description="Count of duplicate chunks removed")
+    citations: list[Citation] = Field(default_factory=list, description="Generated citations for compressed context")
+
+
 class RAGResponse(BaseModel):
     """
-    Final output model of the Phase 7 Complete RAG Pipeline.
+    Final output model of the Phase 7 & Phase 8 RAG Pipeline.
     """
     model_config = ConfigDict(from_attributes=True)
 
@@ -83,8 +138,14 @@ class RAGResponse(BaseModel):
     is_grounded: bool = Field(..., description="True if answer was generated from retrieved context")
     fallback_used: bool = Field(..., description="True if system fell back to ungrounded base LLM")
     sources: list[SourceAttribution] = Field(default_factory=list, description="List of source attributions used")
+    citations: list[Citation] = Field(default_factory=list, description="Structured citations for retrieved chunks")
     context_tokens: int = Field(default=0, description="Token count of injected context")
     total_latency_ms: float = Field(..., description="End-to-end RAG pipeline latency in ms")
     search_latency_ms: float = Field(default=0.0, description="Vector search latency in ms")
     rerank_latency_ms: float = Field(default=0.0, description="Reranking latency in ms")
     generation_latency_ms: float = Field(default=0.0, description="LLM inference latency in ms")
+    
+    # Phase 8 Advanced Pipeline Telemetry & Debug Metadata
+    expanded_queries: list[str] = Field(default_factory=list, description="Semantic query expansion variations")
+    hyde_document_used: bool = Field(default=False, description="True if HyDE embedding retrieval was performed")
+    compression_stats: dict | None = Field(default=None, description="Compression ratio and token savings stats")

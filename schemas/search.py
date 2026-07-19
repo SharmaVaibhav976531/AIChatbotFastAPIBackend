@@ -103,6 +103,24 @@ class VectorSearchRequest(BaseModel):
     )
 
 
+class MultiQuerySearchRequest(BaseModel):
+    """
+    Request model for POST /rag/multi-query debugging endpoint.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    queries: list[str] = Field(
+        ...,
+        min_items=1,
+        max_items=10,
+        description="List of query variations to execute in parallel"
+    )
+    session_id: uuid.UUID | None = Field(default=None, description="Chat session ID filter")
+    top_k: int | None = Field(default=None, ge=1, le=100)
+    similarity_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    filters: MetadataFilter | None = Field(default=None)
+
+
 class RankedChunkResult(BaseModel):
     """
     Individual ranked chunk returned by the vector search engine.

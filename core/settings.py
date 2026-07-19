@@ -92,6 +92,20 @@ class Settings(BaseSettings):
     prompt_cache_ttl: int = 600
     prompt_template: str = "default_grounded"
 
+    # --- PHASE 8: ADVANCED RAG PIPELINE CONFIGURATION ---
+    enable_query_expansion: bool = True
+    enable_hyde: bool = True
+    enable_multi_query: bool = True
+    enable_parent_child: bool = True
+    enable_context_compression: bool = True
+    enable_citations: bool = True
+    enable_source_attribution: bool = True
+
+    max_multi_queries: int = 3
+    hyde_max_tokens: int = 250
+    compression_ratio: float = 0.7  # Target context compression ratio (0.0 to 1.0)
+    advanced_rag_cache_ttl: int = 300
+
 
 
     @computed_field
