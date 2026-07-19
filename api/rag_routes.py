@@ -63,7 +63,7 @@ async def debug_build_context(
     context_builder_service: ContextBuilderService = Depends(get_context_builder_service)
 ):
     try:
-        search_res = await vector_search_service.search(
+        search_res = vector_search_service.search(
             request=request,
             user_id=current_user.id
         )
@@ -87,12 +87,9 @@ async def debug_build_prompt(
     prompt_builder_service: PromptBuilderService = Depends(get_prompt_builder_service)
 ):
     try:
-        search_res = await vector_search_service.search(
-            user_id=current_user.id,
-            query=request.query,
-            top_k=request.top_k or 5,
-            similarity_threshold=request.similarity_threshold or 0.05,
-            filters=request.filters
+        search_res = vector_search_service.search(
+            request=request,
+            user_id=current_user.id
         )
         reranked, _ = reranking_service.rerank(search_res.results, request.query)
         built_ctx = context_builder_service.build_context(reranked)
@@ -113,12 +110,9 @@ async def debug_rerank(
     reranking_service: RerankingService = Depends(get_reranking_service)
 ):
     try:
-        search_res = await vector_search_service.search(
-            user_id=current_user.id,
-            query=request.query,
-            top_k=request.top_k or 5,
-            similarity_threshold=request.similarity_threshold or 0.05,
-            filters=request.filters
+        search_res = vector_search_service.search(
+            request=request,
+            user_id=current_user.id
         )
         reranked, _ = reranking_service.rerank(search_res.results, request.query)
         return reranked

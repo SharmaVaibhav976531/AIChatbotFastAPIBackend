@@ -56,6 +56,14 @@ class MessageRepository:
             self.db.commit()
             self.db.refresh(new_message)
             
+            from utils.educational_logger import EducationalLogger
+            EducationalLogger.log_message_event(
+                role=role,
+                session_id=str(session_id),
+                message_id=str(new_message.id),
+                length=len(content)
+            )
+            
             logger.info(f"Message created: {new_message.id} (role: {role})")
             return new_message
             

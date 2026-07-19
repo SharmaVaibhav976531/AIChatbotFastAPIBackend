@@ -1,34 +1,33 @@
 # services/prompt_builder_service.py
 
 """
-Phase 7: Prompt Builder Service
+Advanced Prompt Builder Service — Complete RAG & AI Agent Component
 
-Constructs deterministic system prompts and message structures for LLM response generation.
-Supports system instructions, context injection, conversation history, and user question positioning.
+Assembles deterministic system prompts incorporating:
+System Prompt -> Injected Context -> Conversation History -> User Memory -> Question -> Instructions
 """
 
 import logging
+from typing import Dict, Any, List, Optional
 from core.settings import get_settings
 from schemas.rag import BuiltContext, PromptPayload
+from utils.educational_logger import EducationalLogger
 
 logger = logging.getLogger(__name__)
 
-STRICT_GROUNDED_SYSTEM_PROMPT = """You are an accurate, helpful AI Assistant with access to uploaded user documents.
+ADVANCED_GROUNDED_SYSTEM_PROMPT = """You are an enterprise-grade AI Assistant with document grounding and agent tool capabilities.
 
-GROUNDING RULES (STRICTLY FOLLOW):
-1. Answer the user's question using ONLY the provided RETRIEVED CONTEXT below.
-2. Do NOT use outside knowledge or make assumptions beyond what is explicitly stated in the context.
-3. If the provided context does NOT contain enough information to answer the question, state clearly:
-   "The uploaded documents do not contain enough information to answer this question."
-4. Maintain a professional, polite tone.
-5. Keep answers clear, concise, and accurate to the document sources.
+PROMPT STRUCTURE & INSTRUCTIONS:
+1. Primary Source: Use the RETRIEVED DOCUMENT CONTEXT below whenever present to answer the user's question accurately.
+2. Grounding Rules: Cite source filenames and page/chunk positions. Do not invent non-existent facts.
+3. User Memory & Preferences: Respect the user's preferences and memory facts provided below.
+4. Formatting: Output clear, structured responses with markdown formatting.
+
+USER MEMORY & PREFERENCES:
+{user_memory_section}
 
 RETRIEVED DOCUMENT CONTEXT:
 {retrieved_context}
-"""
-
-UNGROUNDED_FALLBACK_SYSTEM_PROMPT = """You are a helpful, intelligent AI Assistant.
-Answer the user's question accurately and concisely using your standard knowledge.
 """
 
 
@@ -40,46 +39,74 @@ class PromptBuilderService:
         self,
         query: str,
         built_context: BuiltContext,
-        chat_history: list[dict] | None = None
+        chat_history: list[dict] | None = None,
+        user_memory: Dict[str, Any] | None = None
     ) -> PromptPayload:
         """
-        Builds a grounded system prompt with context injection and conversation history.
-        
-        Args:
-            query: Current user question
-            built_context: BuiltContext payload from ContextBuilderService
-            chat_history: Prior conversation turns [{role: 'user'|'assistant', content: '...'}]
-            
-        Returns:
-            PromptPayload object ready for OpenAI SDK completion call.
+        Builds an advanced prompt payload with system prompt, memory, context, history, and instructions.
         """
-        has_context = bool(built_context and built_context.context_text.strip())
+        start_time = EducationalLogger.log_function_enter(
+            file_name="services/prompt_builder_service.py",
+            class_name="PromptBuilderService",
+            func_name="build_rag_prompt",
+            purpose="Construct multi-section system prompt and message array for LLM.",
+            input_params={"query": f"'{query[:30]}...'", "context_chunks": built_context.chunk_count if built_context else 0}
+        )
 
-        if has_context:
-            system_prompt = STRICT_GROUNDED_SYSTEM_PROMPT.format(
-                retrieved_context=built_context.context_text
-            )
-        else:
-            system_prompt = UNGROUNDED_FALLBACK_SYSTEM_PROMPT
+        has_context = bool(built_context and built_context.context_text.strip())
+        ctx_text = built_context.context_text if has_context else "No document context retrieved."
+
+        mem_lines = []
+        if user_memory:
+            if user_memory.get("preferences"):
+                mem_lines.append(f"• Preferences: {user_memory['preferences']}")
+            if user_memory.get("session_summary"):
+                mem_lines.append(f"• Session Summary: {user_memory['session_summary']}")
+        mem_str = "\n".join(mem_lines) if mem_lines else "None recorded."
+
+        system_prompt = ADVANCED_GROUNDED_SYSTEM_PROMPT.format(
+            user_memory_section=mem_str,
+            retrieved_context=ctx_text
+        )
 
         formatted_messages = [{"role": "system", "content": system_prompt}]
 
-        # Inject Conversation History (up to last 10 turns)
+        # Inject Conversation History
+        history_tokens = 0
         if chat_history:
             for msg in chat_history[-10:]:
                 role = msg.get("role")
                 content = msg.get("content")
                 if role in ("user", "assistant") and content:
                     formatted_messages.append({"role": role, "content": content})
+                    history_tokens += len(content.split())
 
         # Append current user query
         formatted_messages.append({"role": "user", "content": query})
 
-        logger.info(f"[PROMPT-BUILDER] Assembled prompt with {len(formatted_messages)} messages | Has Context: {has_context}")
+        sys_tokens = len(system_prompt.split())
+        ctx_tokens = len(ctx_text.split())
+        query_tokens = len(query.split())
+        total_tokens = sys_tokens + history_tokens + query_tokens
+
+        # Educational Logger breakdown
+        EducationalLogger.log_prompt_builder_execution(
+            system_prompt_len=len(system_prompt),
+            context_len=len(ctx_text),
+            history_count=len(chat_history) if chat_history else 0
+        )
+
+        EducationalLogger.log_function_exit(
+            file_name="services/prompt_builder_service.py",
+            class_name="PromptBuilderService",
+            func_name="build_rag_prompt",
+            returned_value=f"PromptPayload({len(formatted_messages)} msgs, ~{total_tokens} tokens)",
+            start_time=start_time
+        )
 
         return PromptPayload(
             system_prompt=system_prompt,
-            context_text=built_context.context_text if has_context else "",
+            context_text=ctx_text,
             user_query=query,
             formatted_messages=formatted_messages
         )

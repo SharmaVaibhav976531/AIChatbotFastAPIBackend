@@ -10,10 +10,17 @@ from contextvars import ContextVar
 # REQUEST ID — Tracks a single request across all layers
 # ══════════════════════════════════════════════════════════════════
 request_id_var: ContextVar[str] = ContextVar("request_id", default="NO-REQUEST")
+execution_tree_var: ContextVar[list] = ContextVar("execution_tree", default=None)
 
 def generate_request_id() -> str:
     """Generate a short unique request ID like 'REQ-a1b2c3d4'."""
     return f"REQ-{uuid.uuid4().hex[:8]}"
+
+def record_execution_step(step_name: str) -> None:
+    """Appends a node step to the active request's real execution tree."""
+    tree = execution_tree_var.get()
+    if tree is not None:
+        tree.append(step_name)
 
 
 # ══════════════════════════════════════════════════════════════════

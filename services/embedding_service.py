@@ -1,6 +1,7 @@
 # services/embedding_service.py
 
 import math
+import time
 from abc import ABC, abstractmethod
 from openai import OpenAI
 from core.settings import get_settings
@@ -209,11 +210,39 @@ embedding_provider = OpenAICompatibleEmbeddingProvider(
     model=settings.embedding_model
 )
 
+from utils.educational_logger import EducationalLogger
+
 class EmbeddingService:
-    def __init__(self, provider: EmbeddingProvider):
+    def __init__(self, provider: EmbeddingProvider = embedding_provider):
         self.provider = provider
 
     def generate_embeddings(self, texts: list[str]) -> list[list[float]]:
+        start_time = EducationalLogger.log_function_enter(
+            file_name="services/embedding_service.py",
+            class_name="EmbeddingService",
+            func_name="generate_embeddings",
+            purpose="Generate vector embeddings for input text strings.",
+            input_params={"chunks_count": len(texts)}
+        )
+        t0 = time.time()
         logger.info(f"[EMBEDDING-SERVICE] Generating embeddings for {len(texts)} chunks...")
         vectors = self.provider.embed_documents(texts)
+        duration_ms = round((time.time() - t0) * 1000, 2)
+        
+        if vectors:
+            raw_dim = len(vectors[0])
+            EducationalLogger.log_embedding_execution(
+                model_name=settings.embedding_model,
+                input_count=len(texts),
+                dimensions=raw_dim,
+                duration_ms=duration_ms
+            )
+
+        EducationalLogger.log_function_exit(
+            file_name="services/embedding_service.py",
+            class_name="EmbeddingService",
+            func_name="generate_embeddings",
+            returned_value=f"List of {len(vectors)} vectors (dim={len(vectors[0]) if vectors else 0})",
+            start_time=start_time
+        )
         return vectors
