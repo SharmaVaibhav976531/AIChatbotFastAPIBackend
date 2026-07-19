@@ -174,8 +174,9 @@ class ApiClient {
         });
     }
 
-    async getDocuments() {
-        return this.request('/documents/');
+    async getDocuments(sessionId = null) {
+        const url = sessionId ? `/documents/?session_id=${sessionId}` : '/documents/';
+        return this.request(url);
     }
 
     async deleteDocument(documentId) {
@@ -184,11 +185,12 @@ class ApiClient {
 
     // --- Phase 6: Vector Search & Retrieval API Endpoints ---
 
-    async search(query, topK = null, threshold = null, metric = null, filters = null) {
+    async search(query, topK = null, threshold = null, metric = null, filters = null, sessionId = null) {
         return this.request('/search', {
             method: 'POST',
             body: JSON.stringify({
                 query,
+                session_id: sessionId,
                 top_k: topK,
                 similarity_threshold: threshold,
                 distance_metric: metric,
@@ -204,11 +206,12 @@ class ApiClient {
         });
     }
 
-    async retrieveContext(query, topK = null, threshold = null) {
+    async retrieveContext(query, topK = null, threshold = null, sessionId = null) {
         return this.request('/retrieve', {
             method: 'POST',
             body: JSON.stringify({
                 query,
+                session_id: sessionId,
                 top_k: topK,
                 similarity_threshold: threshold
             })

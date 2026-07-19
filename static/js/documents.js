@@ -126,8 +126,12 @@ export const documents = {
         console.log(`[DOCUMENTS] Uploading: ${file.name}`);
         this.showProgress(file.name, 'Uploading...');
         
+        const sessionId = window.app?.currentSessionId || localStorage.getItem('current_session_id');
         const formData = new FormData();
         formData.append('file', file);
+        if (sessionId) {
+            formData.append('session_id', sessionId);
+        }
 
         const xhr = new XMLHttpRequest();
         const token = api.getAccessToken();
@@ -196,7 +200,8 @@ export const documents = {
     // ═══════════════════════════════════════════════════
     async loadDocuments() {
         try {
-            const data = await api.getDocuments();
+            const sessionId = window.app?.currentSessionId || localStorage.getItem('current_session_id');
+            const data = await api.getDocuments(sessionId);
             this.renderDocumentList(data.documents || []);
         } catch (error) {
             console.error('[DOCUMENTS] Failed to load:', error);

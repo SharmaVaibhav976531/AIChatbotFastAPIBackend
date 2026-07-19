@@ -11,18 +11,23 @@ from database.base import Base
 
 if TYPE_CHECKING:
     from database.models.user import User
+    from database.models.session import ChatSession
     from database.models.chunk import DocumentChunk
 
 class Document(Base):
     """
     Represents an uploaded file. 
     Tracks the file's lifecycle from upload to processing completion.
+    Scoped to a specific user and chat session.
     """
     __tablename__ = "documents"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=True, index=True
     )
     
     # File Metadata
@@ -48,6 +53,7 @@ class Document(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="documents")
+    session: Mapped["ChatSession | None"] = relationship(back_populates="documents")
     chunks: Mapped[list["DocumentChunk"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )

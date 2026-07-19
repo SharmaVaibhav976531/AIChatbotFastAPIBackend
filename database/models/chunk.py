@@ -25,6 +25,11 @@ class DocumentChunk(Base):
         Uuid, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     
+    # Optional parent_id self-reference for Parent-Child chunk hierarchy
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)  # Order of chunk in document
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -38,6 +43,14 @@ class DocumentChunk(Base):
 
     # Relationships
     document: Mapped["Document"] = relationship(back_populates="chunks")
+    
+    # Self-referencing Parent-Child relationship
+    parent_chunk: Mapped["DocumentChunk | None"] = relationship(
+        "DocumentChunk", remote_side="DocumentChunk.id", back_populates="child_chunks"
+    )
+    child_chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk", back_populates="parent_chunk", cascade="all, delete-orphan"
+    )
     
     # 1:1 relationship with metadata 
     # FIX: Renamed to 'chunk_metadata' because 'metadata' is reserved by SQLAlchemy

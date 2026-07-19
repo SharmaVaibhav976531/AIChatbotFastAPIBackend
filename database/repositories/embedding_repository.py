@@ -23,18 +23,21 @@ class EmbeddingRepository:
         self, 
         query_vector: list[float], 
         user_id: uuid.UUID, 
+        session_id: uuid.UUID | None = None,
         top_k: int = 5,
         similarity_threshold: float = 0.05
     ) -> list[dict]:
         """
         Perform cosine similarity search on the embeddings table.
         
-        Only returns chunks belonging to COMPLETED documents owned by the given user.
+        Only returns chunks belonging to COMPLETED documents owned by the given user
+        and associated with the given chat session (if session_id provided).
         Uses pgvector's cosine distance operator (<=>).
         
         Args:
             query_vector: The embedding vector for the user's query
             user_id: Only search documents belonging to this user
+            session_id: Optional session ID filter for chat-isolated document context
             top_k: Number of top results to return
             similarity_threshold: Minimum similarity score (0-1, higher = more similar)
             
@@ -45,7 +48,7 @@ class EmbeddingRepository:
         # Cosine similarity = 1 - cosine_distance
         cosine_distance = Embedding.vector.cosine_distance(query_vector)
         
-        results = (
+        query = (
             self.db.query(
                 DocumentChunk.content,
                 DocumentChunk.chunk_index,
@@ -59,10 +62,12 @@ class EmbeddingRepository:
                 Document.user_id == user_id,
                 Document.status == "COMPLETED"
             )
-            .order_by(cosine_distance.asc())  # Lower distance = more similar
-            .limit(top_k)
-            .all()
         )
+
+        if session_id:
+            query = query.filter(Document.session_id == session_id)
+
+        results = query.order_by(cosine_distance.asc()).limit(top_k).all()
 
         # Convert to dicts and filter by threshold
         similar_chunks = []

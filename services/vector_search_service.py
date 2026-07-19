@@ -61,13 +61,15 @@ class VectorSearchService:
         )
         metric = request.distance_metric or self.settings.vector_distance_metric
 
-        # Cache key formulation
+        target_session_id = request.session_id or (request.filters.session_id if request.filters else None)
+
+        # Cache key formulation scoped by user_id AND session_id
         cache_key = None
         if self.cache_service and self.settings.search_cache_enabled and request.use_cache:
-            cache_key = f"search:{user_id}:{hash((request.query, top_k, similarity_threshold, metric, str(request.filters)))}"
+            cache_key = f"search:{user_id}:{target_session_id or 'all'}:{hash((request.query, top_k, similarity_threshold, metric, str(request.filters)))}"
             cached_data = self.cache_service.get(cache_key)
             if cached_data:
-                logger.info(f"[SEARCH-SERVICE] ⚡ Search Cache HIT for query: '{request.query[:50]}'")
+                logger.info(f"[SEARCH-SERVICE] ⚡ Search Cache HIT for query: '{request.query[:50]}' (session: {target_session_id})")
                 latency_ms = round((time.time() - start_time) * 1000, 2)
                 
                 # Parse cached dictionary into SearchResponse
@@ -76,7 +78,7 @@ class VectorSearchService:
                 cached_dict["cache_hit"] = True
                 return SearchResponse(**cached_dict)
 
-        logger.info(f"[SEARCH-SERVICE] 🔍 Search Cache MISS — Executing vector search for query: '{request.query[:50]}'")
+        logger.info(f"[SEARCH-SERVICE] 🔍 Search Cache MISS — Executing vector search for query: '{request.query[:50]}' (session: {target_session_id})")
 
         # 1. Embed query text
         query_vectors = self.embedding_service.generate_embeddings([request.query])
@@ -95,10 +97,11 @@ class VectorSearchService:
         
         query_vector = query_vectors[0]
 
-        # 2. Query pgvector Repository
+        # 2. Query pgvector Repository with session context isolation
         raw_candidates = self.vector_repo.search_vectors(
             query_vector=query_vector,
             user_id=user_id,
+            session_id=target_session_id,
             top_k=top_k,
             similarity_threshold=similarity_threshold,
             metric=metric,

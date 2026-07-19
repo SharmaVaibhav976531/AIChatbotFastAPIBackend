@@ -21,6 +21,10 @@ class MetadataFilter(BaseModel):
     """
     model_config = ConfigDict(extra="ignore")
 
+    session_id: uuid.UUID | None = Field(
+        default=None,
+        description="Filter search to specific chat session UUID"
+    )
     document_ids: list[uuid.UUID] | None = Field(
         default=None, 
         description="Filter search to specific document UUIDs"
@@ -59,7 +63,7 @@ class MetadataFilter(BaseModel):
 
 class VectorSearchRequest(BaseModel):
     """
-    Request model for POST /search and POST /vector-search endpoints.
+    Request model for POST /search, POST /vector-search, and POST /retrieve endpoints.
     """
     model_config = ConfigDict(extra="ignore")
 
@@ -68,6 +72,10 @@ class VectorSearchRequest(BaseModel):
         min_length=1, 
         max_length=4000, 
         description="Natural language user query to embed and search"
+    )
+    session_id: uuid.UUID | None = Field(
+        default=None,
+        description="Chat session ID to isolate document context"
     )
     top_k: int | None = Field(
         default=None, 
@@ -93,6 +101,24 @@ class VectorSearchRequest(BaseModel):
         default=True, 
         description="Whether to check Redis search cache"
     )
+
+
+class MultiQuerySearchRequest(BaseModel):
+    """
+    Request model for POST /rag/multi-query debugging endpoint.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    queries: list[str] = Field(
+        ...,
+        min_items=1,
+        max_items=10,
+        description="List of query variations to execute in parallel"
+    )
+    session_id: uuid.UUID | None = Field(default=None, description="Chat session ID filter")
+    top_k: int | None = Field(default=None, ge=1, le=100)
+    similarity_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    filters: MetadataFilter | None = Field(default=None)
 
 
 class RankedChunkResult(BaseModel):

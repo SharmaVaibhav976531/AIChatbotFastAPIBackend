@@ -171,7 +171,7 @@ const app = {
                 // 3. Vector Context Retrieval + Chat API Call
                 let searchResult = null;
                 try {
-                    searchResult = await api.retrieveContext(message);
+                    searchResult = await api.retrieveContext(message, null, null, this.currentSessionId);
                     retrievalState.setSearchResult(searchResult);
                 } catch (searchErr) {
                     console.warn('[APP] Retrieval context failed:', searchErr);
@@ -374,8 +374,8 @@ const app = {
         
         // Update active state in UI
         document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
-        // Find the clicked element and add active class (simplified for this example)
         await this.loadSessionMessages(sessionId);
+        await documents.loadDocuments();
     },
 
     async loadSessionMessages(sessionId) {
@@ -406,6 +406,7 @@ const app = {
             chat.clear();
             chat.appendMessage('bot', 'New session created! How can I help you?');
             await this.loadSessions();
+            await documents.loadDocuments();
             return data.id;
         } catch (error) {
             ui.toast.show('Failed to create new session', 'error');
@@ -432,6 +433,8 @@ const app = {
         return div.innerHTML;
     }
 };
+
+window.app = app;
 
 // Start the application
 document.addEventListener('DOMContentLoaded', () => {
