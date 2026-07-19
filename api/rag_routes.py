@@ -41,6 +41,7 @@ async def debug_rag_pipeline(
         return await rag_service.execute_rag(
             user_id=current_user.id,
             query=request.query,
+            session_id=request.session_id,
             top_k=request.top_k,
             threshold=request.similarity_threshold,
             filters=request.filters
@@ -63,11 +64,8 @@ async def debug_build_context(
 ):
     try:
         search_res = await vector_search_service.search(
-            user_id=current_user.id,
-            query=request.query,
-            top_k=request.top_k or 5,
-            similarity_threshold=request.similarity_threshold or 0.05,
-            filters=request.filters
+            request=request,
+            user_id=current_user.id
         )
         reranked, _ = reranking_service.rerank(search_res.results, request.query)
         return context_builder_service.build_context(reranked)

@@ -1,6 +1,7 @@
 # api/document_routes.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
+from uuid import UUID
 from database.models.user import User
 from app.dependencies import get_current_active_user, get_document_service, get_document_repository
 from services.document_service import DocumentService
@@ -18,6 +19,7 @@ document_router = APIRouter(prefix="/documents", tags=["Documents"])
 @document_router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
+    session_id: UUID | None = Form(None),
     user: User = Depends(get_current_active_user),
     doc_service: DocumentService = Depends(get_document_service)
 ):
@@ -35,7 +37,8 @@ async def upload_document(
         
     try:
         document = doc_service.upload_document(
-            user_id=user.id, 
+            user_id=user.id,
+            session_id=session_id,
             file_content=content, 
             original_filename=file.filename,
             extension=ext, 
@@ -44,7 +47,7 @@ async def upload_document(
         
         # 3. Trigger Background Task
         process_document_task.delay(str(document.id))
-        logger.info(f"[API] Triggered Celery task for document: {document.id}")
+        logger.info(f"[API] Triggered Celery task for document: {document.id} (Session: {session_id})")
         
         return document
     except ValueError as e:
@@ -53,11 +56,12 @@ async def upload_document(
 
 @document_router.get("/", response_model=DocumentListResponse)
 async def list_documents(
+    session_id: UUID | None = Query(None),
     user: User = Depends(get_current_active_user),
     doc_repo: DocumentRepository = Depends(get_document_repository)
 ):
-    """List all documents for the authenticated user."""
-    docs = doc_repo.get_by_user(user.id)
+    """List all documents for the authenticated user, optionally filtered by session_id."""
+    docs = doc_repo.get_by_user(user.id, session_id=session_id)
     return DocumentListResponse(documents=docs, total=len(docs))
 
 

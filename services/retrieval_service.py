@@ -26,6 +26,7 @@ class RetrievalService:
         self,
         query: str,
         user_id: uuid.UUID,
+        session_id: uuid.UUID | None = None,
         top_k: int = 5,
         similarity_threshold: float = 0.05
     ) -> str | None:
@@ -35,6 +36,7 @@ class RetrievalService:
         Args:
             query: The user's message
             user_id: The authenticated user's ID
+            session_id: Optional session ID to isolate document context per chat
             top_k: Max number of chunks to retrieve
             similarity_threshold: Minimum similarity score (0-1)
             
@@ -44,7 +46,7 @@ class RetrievalService:
         """
         try:
             # 1. Embed the user's query
-            logger.info(f"[RETRIEVAL] Embedding query: '{query[:80]}...'")
+            logger.info(f"[RETRIEVAL] Embedding query: '{query[:80]}...' (session: {session_id})")
             query_vectors = self.embedding_service.generate_embeddings([query])
             
             if not query_vectors:
@@ -53,10 +55,11 @@ class RetrievalService:
             
             query_vector = query_vectors[0]
 
-            # 2. Search for similar chunks in the user's documents
+            # 2. Search for similar chunks in the user's session documents
             similar_chunks = self.embedding_repo.search_similar(
                 query_vector=query_vector,
                 user_id=user_id,
+                session_id=session_id,
                 top_k=top_k,
                 similarity_threshold=similarity_threshold
             )

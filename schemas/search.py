@@ -21,6 +21,10 @@ class MetadataFilter(BaseModel):
     """
     model_config = ConfigDict(extra="ignore")
 
+    session_id: uuid.UUID | None = Field(
+        default=None,
+        description="Filter search to specific chat session UUID"
+    )
     document_ids: list[uuid.UUID] | None = Field(
         default=None, 
         description="Filter search to specific document UUIDs"
@@ -59,7 +63,7 @@ class MetadataFilter(BaseModel):
 
 class VectorSearchRequest(BaseModel):
     """
-    Request model for POST /search and POST /vector-search endpoints.
+    Request model for POST /search, POST /vector-search, and POST /retrieve endpoints.
     """
     model_config = ConfigDict(extra="ignore")
 
@@ -68,6 +72,10 @@ class VectorSearchRequest(BaseModel):
         min_length=1, 
         max_length=4000, 
         description="Natural language user query to embed and search"
+    )
+    session_id: uuid.UUID | None = Field(
+        default=None,
+        description="Chat session ID to isolate document context"
     )
     top_k: int | None = Field(
         default=None, 

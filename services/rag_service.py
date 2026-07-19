@@ -56,6 +56,7 @@ class RAGService:
         self,
         user_id: uuid.UUID,
         query: str,
+        session_id: uuid.UUID | None = None,
         chat_history: list[dict] | None = None,
         top_k: int | None = None,
         threshold: float | None = None,
@@ -63,19 +64,24 @@ class RAGService:
         request_id: str | None = None
     ) -> RAGResponse:
         """
-        Executes complete RAG pipeline for a given user query.
+        Executes complete RAG pipeline for a given user query with session context isolation.
         """
         pipeline_start = time.time()
         req_id = request_id or str(uuid.uuid4())[:8]
 
-        logger.info(f"[RAG-PIPELINE][{req_id}] Starting RAG execution for user={user_id} | query='{query}'")
+        logger.info(f"[RAG-PIPELINE][{req_id}] Starting RAG execution for user={user_id} | session={session_id} | query='{query}'")
 
-        # 1. Redis Cache Check (Prompt & Response Cache)
-        cache_key = f"rag_resp:{user_id}:{hash(query)}"
+        # Ensure filters includes session_id if provided
+        target_filters = filters or MetadataFilter()
+        if session_id and not target_filters.session_id:
+            target_filters.session_id = session_id
+
+        # 1. Redis Cache Check (Prompt & Response Cache) scoped by user_id AND session_id
+        cache_key = f"rag_resp:{user_id}:{session_id or 'all'}:{hash(query)}"
         if self.cache_service and self.settings.search_cache_enabled:
             cached_data = await self.cache_service.get(cache_key)
             if cached_data:
-                logger.info(f"[RAG-PIPELINE][{req_id}] ⚡ Redis Prompt Cache Hit!")
+                logger.info(f"[RAG-PIPELINE][{req_id}] ⚡ Redis Prompt Cache Hit! (session: {session_id})")
                 try:
                     resp_dict = json.loads(cached_data)
                     resp_dict["total_latency_ms"] = round((time.time() - pipeline_start) * 1000, 2)
@@ -90,7 +96,7 @@ class RAGService:
             query=query,
             top_k=top_k or self.settings.max_context_chunks,
             similarity_threshold=threshold or self.settings.default_similarity_threshold,
-            filters=filters
+            filters=target_filters
         )
         search_latency = round((time.time() - search_start) * 1000, 2)
 

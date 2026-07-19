@@ -31,17 +31,20 @@ class VectorRepository:
         self,
         query_vector: list[float],
         user_id: uuid.UUID,
+        session_id: uuid.UUID | None = None,
         top_k: int = 5,
         similarity_threshold: float = 0.05,
         metric: Literal["cosine", "l2", "inner_product"] = "cosine",
         filters: MetadataFilter | None = None
     ) -> list[dict]:
         """
-        Executes pgvector similarity search with metadata filtering and user security scope.
+        Executes pgvector similarity search with metadata filtering, user security scope,
+        and chat-session document context isolation.
         
         Args:
             query_vector: Dense floating point query embedding vector
-            user_id: Authenticated user ID (ensures isolation)
+            user_id: Authenticated user ID (ensures user isolation)
+            session_id: Optional Chat Session ID (ensures session context isolation)
             top_k: Number of nearest candidate chunks to retrieve
             similarity_threshold: Minimum calculated similarity score threshold
             metric: Distance metric algorithm ("cosine", "l2", "inner_product")
@@ -63,7 +66,9 @@ class VectorRepository:
             dist_expr = Embedding.vector.cosine_distance(query_vector)
             order_by_clause = dist_expr.asc()
 
-        # 2. Base Query Joins
+        # 2. Base Query Joins & Session Isolation Filter
+        target_session_id = session_id or (filters.session_id if filters else None)
+        
         query = (
             self.db.query(
                 DocumentChunk.id.label("chunk_id"),
@@ -83,8 +88,13 @@ class VectorRepository:
             )
         )
 
+        if target_session_id:
+            query = query.filter(Document.session_id == target_session_id)
+
         # 3. Dynamic Metadata Filters
         if filters:
+            if filters.session_id and not target_session_id:
+                query = query.filter(Document.session_id == filters.session_id)
             if filters.document_ids:
                 query = query.filter(Document.id.in_(filters.document_ids))
             if filters.filenames:

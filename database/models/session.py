@@ -14,6 +14,7 @@ from database.base import Base
 if TYPE_CHECKING:
     from database.models.user import User
     from database.models.message import Message
+    from database.models.document import Document
 
 class ChatSession(Base):
     """
@@ -46,6 +47,11 @@ class ChatSession(Base):
         back_populates="session", 
         cascade="all, delete-orphan", 
         order_by="Message.created_at"
+    )
+    
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

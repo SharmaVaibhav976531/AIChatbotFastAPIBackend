@@ -86,13 +86,12 @@ class ChatbotService:
     # =====================================================================
     # RAG CONTEXT BUILDING
     # =====================================================================
-    def _build_rag_prompt(self, user_message: str, user: User) -> str:
+    def _build_rag_prompt(self, user_message: str, user: User, session_id: uuid.UUID | None = None) -> str:
         """
-        Build a system prompt augmented with relevant document context.
+        Build a system prompt augmented with relevant document context for the current session.
         
-        If the user has uploaded documents and relevant chunks are found,
-        they are injected into the system prompt so the LLM can answer
-        based on the user's documents.
+        If the user has uploaded documents to this specific session and relevant chunks are found,
+        they are injected into the system prompt so the LLM can answer based on the session's documents.
         """
         if not self.retrieval_service:
             return self.base_system_prompt
@@ -100,6 +99,7 @@ class ChatbotService:
         context = self.retrieval_service.retrieve_context(
             query=user_message,
             user_id=user.id,
+            session_id=session_id,
             top_k=5,
             similarity_threshold=0.05
         )
@@ -121,7 +121,7 @@ class ChatbotService:
             "══════════════════════════════════════"
         )
         
-        logger.info(f"[SERVICE] 📄 RAG context injected into system prompt ({len(context)} chars)")
+        logger.info(f"[SERVICE] 📄 RAG context injected into system prompt for session {session_id} ({len(context)} chars)")
         return rag_prompt
 
     # =====================================================================
@@ -150,8 +150,8 @@ class ChatbotService:
             model_name="N/A"
         )
 
-        # 3. RAG Retrieval — Search uploaded documents for relevant context
-        system_prompt = self._build_rag_prompt(user_message, user)
+        # 3. RAG Retrieval — Search uploaded documents in this session for relevant context
+        system_prompt = self._build_rag_prompt(user_message, user, session_id=session.id)
 
         # 4. Load Conversation History from DB
         db_messages = self.message_repo.get_messages_by_session(session.id)
