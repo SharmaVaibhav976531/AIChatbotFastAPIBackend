@@ -1,571 +1,737 @@
-# Enterprise FastAPI AI Chatbot & Advanced RAG Engine
+# Enterprise FastAPI AI Assistant & Advanced RAG Engine
 
-> **Version:** `1.0.0-phase9` | **Status:** `Production Ready & Advanced RAG Enabled`  
-> A high-performance, modular, enterprise-grade AI Chatbot and Retrieval-Augmented Generation (RAG) platform built with FastAPI, PostgreSQL (`pgvector`), Celery, Redis, SQLAlchemy 2.0, OpenRouter LLM APIs, and a vanilla JavaScript frontend. Includes a real-time **Educational Live Live-Backend Logging System** that traces every request, dependency, repository call, and vector calculation like a live technical tutorial.
+> **Production-Grade Conversational AI Platform with Multi-Tier Memory, Semantic Agent Planning, Capability-Validated Tool Routing, and Asynchronous RAG Pipeline**
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.139.0-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![pgvector](https://img.shields.io/badge/pgvector-0.5.0-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
+[![Redis](https://img.shields.io/badge/Redis-8.0.1-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Celery](https://img.shields.io/badge/Celery-5.6.3-37B24D?style=for-the-badge&logo=celery&logoColor=white)](https://docs.celeryq.dev/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0.51-D71F00?style=for-the-badge&logo=python&logoColor=white)](https://www.sqlalchemy.org/)
+[![Alembic](https://img.shields.io/badge/Alembic-1.18.5-6B46C1?style=for-the-badge&logo=python&logoColor=white)](https://alembic.sqlalchemy.org/)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-LLM%20Gateway-742774?style=for-the-badge&logo=openai&logoColor=white)](https://openrouter.ai/)
+[![JWT Auth](https://img.shields.io/badge/JWT-Protected-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white)](https://jwt.io/)
+[![Swagger](https://img.shields.io/badge/Swagger-OpenAPI%203.0-85EA2D?style=for-the-badge&logo=swagger&logoColor=white)](http://127.0.0.1:8000/docs)
 
 ---
 
-## 📌 1. Project Overview
+## 📋 Table of Contents
+
+1. [Project Overview](#-project-overview)
+2. [Key Features](#-key-features)
+3. [Technology Stack](#-technology-stack)
+4. [System Architecture](#-system-architecture)
+5. [Project Workflow](#-project-workflow)
+6. [Folder Structure](#-folder-structure)
+7. [Installation Guide](#-installation-guide)
+8. [Environment Variables](#-environment-variables)
+9. [Database & Migrations](#-database--migrations)
+10. [Authentication & Security](#-authentication--security)
+11. [AI & RAG Pipeline](#-ai--rag-pipeline)
+12. [Agentic Workflow & Tool Routing](#-agentic-workflow--tool-routing)
+13. [Logging & Diagnostic System](#-logging--diagnostic-system)
+14. [Redis & Caching Infrastructure](#-redis--caching-infrastructure)
+15. [Asynchronous Celery Tasks](#-asynchronous-celery-tasks)
+16. [API Documentation](#-api-documentation)
+17. [Example Requests & Responses](#-example-requests--responses)
+18. [Running & Testing](#-running--testing)
+19. [Screenshots & UI Placeholders](#-screenshots--ui-placeholders)
+20. [Error Handling](#-error-handling)
+21. [Performance Optimization](#-performance-optimization)
+22. [Design Patterns](#-design-patterns)
+23. [Future Improvements](#-future-improvements)
+24. [Contributing](#-contributing)
+25. [License](#-license)
+26. [Author](#-author)
+
+---
+
+## 📌 Project Overview
 
 ### What is this project?
-The **Enterprise FastAPI AI Chatbot** is a full-stack, production-grade conversational AI platform. It allows users to create multi-user accounts, manage persistent chat sessions, upload complex documents (PDF, DOCX, CSV, TXT, MD) with optical character recognition (OCR), and perform vector-similarity search across isolated document contexts using Retrieval-Augmented Generation (RAG).
+The **Enterprise FastAPI AI Assistant** is a full-stack, production-grade conversational AI platform built with Python, FastAPI, PostgreSQL (`pgvector`), Celery, Redis, and OpenRouter LLM gateways. It combines multi-user JWT authentication, session-isolated document knowledge retrieval (RAG), and an intelligent, capability-validated AI Agent system.
 
-### Why was it built?
-1. **Context-Aware Conversational AI:** Standard LLMs lack knowledge of private or custom documents. This system bridges private documents with LLM inference while maintaining zero data leakages between users or chat sessions.
-2. **Pedagogical Live Backend System:** Built with an **Educational Live-Backend Logging System** that turns terminal output into a step-by-step live technical tutorial for developers learning enterprise Python backend architecture.
-3. **Asynchronous Scalability:** Heavy PDF parsing, OCR, text chunking, and vector embedding generation run as asynchronously dispatched tasks via Celery and Redis without blocking API response times.
+### Why does it exist?
+Standard LLMs lack real-time context and access to private user documents. Furthermore, basic keyword-matching agent implementations often route general natural language queries to specialized tools (like math calculators), leading to application errors. This system solves these problems by providing:
+1. **Strict Multi-Tenant Isolation:** Complete document, chat, and vector separation per user and session.
+2. **Semantic Agent Intelligence:** LLM-driven intent classification and multi-step task decomposition with `supports()` capability checks to prevent tool execution errors.
+3. **Advanced Retrieval Techniques:** Modular RAG enhancements including Query Expansion, HyDE (Hypothetical Document Embeddings), Multi-Query, Parent-Child Hierarchies, and Context Reranking.
+4. **Educational Telemetry:** A live formatted logging system that outputs execution trees, SQL queries, and tool execution rationale in real time.
 
-### Target Users & Real-World Use Cases
-- **Enterprise Staff & Researchers:** Query long internal policy manuals, contracts, financial reports, or technical whitepapers per project session.
-- **Developers & Architecture Students:** Learn real-world FastAPI repository patterns, database session scoping, vector search algorithms (`pgvector`), and JWT token refresh mechanisms.
-
----
-
-## 🌟 2. Feature Matrix
-
-| Feature Category | Capability / Description | Status |
-| :--- | :--- | :---: |
-| **Authentication** | JWT Access & Refresh Tokens, bcrypt Hashing, Client-Side Logout | ✅ Completed |
-| **User Profile** | Self-Profile Retrieval (`GET /auth/me`) & Updates (`PUT /auth/me`) with Redis Cache-Aside | ✅ Completed |
-| **Chat Sessions** | Session Scoped Context, Multi-Session CRUD (`/sessions`), Title Renaming, History Retrieval | ✅ Completed |
-| **Document Processing** | Asynchronous Uploads (`/documents/upload`), Celery Task Pipeline, Storage Abstraction | ✅ Completed |
-| **OCR & Text Extraction** | Tesseract OCR (`pytesseract`), PDFium2, PDFPlumber, Docx, CSV, Text Loaders | ✅ Completed |
-| **Chunking & Metadata** | Recursive Character Text Splitter (`ChunkingService`), Structured Metadata Extraction | ✅ Completed |
-| **Vector Database** | PostgreSQL + `pgvector` HNSW Cosine Similarity Search (`EmbeddingRepository`) | ✅ Completed |
-| **RAG Pipeline** | Context Assembly, Strict Grounding Prompts, Citation Attribution, OpenRouter Integration | ✅ Completed |
-| **Advanced RAG** | Modular Flags: Query Expansion, HyDE, Multi-Query, Parent-Child Hierarchy, Context Compression | ✅ Completed |
-| **Rate Limiting** | SlowAPI Rate Limiter backed by Redis (`20/min` Chat, `5/min` Login, `3/min` Signup) | ✅ Completed |
-| **Monitoring** | Prometheus Custom Metrics (`/metrics` counting requests and latency histograms) | ✅ Completed |
-| **Educational Logging** | Real-time Terminal Execution Trees, File Execution Banners, Function Intents, SQL Audits | ✅ Completed |
-| **Admin Dashboard** | Superuser Authorization Dependencies (`get_admin_user`) | 🚧 Work In Progress |
-| **Hybrid Search** | Combined BM25 Full-Text + Vector Dense Retrieval (`HYBRID_SEARCH_ENABLED=false`) | 🚧 Work In Progress |
+### Real-World Use Cases
+- **Document Analysis & Comparison:** Compare private uploaded resumes or whitepapers against real-time market trends via combined RAG + Web Search.
+- **Enterprise Knowledge Base:** Session-scoped search over internal PDFs, DOCX, CSVs, and markdown files.
+- **Data & Formula Processing:** Safe mathematical evaluation and sandboxed Python execution for analytical tasks.
 
 ---
 
-## 🎨 3. User Interface Screenshots
+## 🌟 Key Features
 
-Below are visual placeholders representing the user interface workflow:
+### 🔐 Authentication & Session Isolation
+- **JWT Authentication:** Access and Refresh Tokens with secure `bcrypt` password hashing.
+- **Multi-Session Isolation:** Complete separation of user sessions, document embeddings, and chat history.
+- **Cache-Aside Profile Management:** User profiles cached via Redis for fast authentication checks.
 
-| Login & Authentication | Workspace Chat & Sidebar |
-| :---: | :---: |
-| ![Login Mockup](static/icons/login_mockup.png) <br> *Sleek dark-mode login & registration with JWT auth.* | ![Chat Mockup](static/icons/chat_mockup.png) <br> *Session-scoped chat with expandable document retrieval drawer.* |
+### 📄 Document Ingestion & Asynchronous RAG
+- **Multi-Format Extraction:** Loaders for `.pdf`, `.docx`, `.csv`, `.txt`, and `.md` files.
+- **OCR Support:** Tesseract OCR integration (`pytesseract`, `pdfplumber`, `pypdfium2`) for scanned documents.
+- **Asynchronous Processing:** Celery task workers handle heavy chunking, metadata extraction, and vector embedding generation in the background.
+- **Vector Database:** PostgreSQL storing 768-dimensional dense vectors with `pgvector` HNSW indexes for cosine similarity search.
 
-| Knowledge Base & Uploads | Advanced RAG Context Debugger |
-| :---: | :---: |
-| ![Upload Mockup](static/icons/upload_mockup.png) <br> *Asynchronous file drag-and-drop & OCR status indicators.* | ![RAG Debug Mockup](static/icons/rag_debug_mockup.png) <br> *Live telemetry for vector search score and citation inspection.* |
+### 🤖 Intelligent AI Agent System
+- **Semantic Planner (`PlannerAgent`):** LLM-based intent detection covering 24+ categories (`MATH`, `DOCUMENT_COMPARISON`, `LIVE_SEARCH`, `PYTHON_EXECUTION`, `CODE_GENERATION`, `GENERAL_AI`, etc.).
+- **Multi-Step Execution:** Automatic step-by-step task decomposition for complex multi-resource requests.
+- **Tool Capability Validation (`supports()`):** Every tool dry-runs validation before execution. Natural language queries are skipped gracefully by math and python tools without raising syntax exceptions.
+- **Sandboxed Python REPL:** Isolated execution environment with prohibited AST modules (OS, subprocess, socket) for secure code execution.
+- **Web Search Integration:** Real-time web queries using DuckDuckGo / Tavily providers.
 
----
-
-## 🛠️ 4. Technology Stack & Versions
-
-### Backend & Core Frameworks
-- **Python**: `3.10+`
-- **FastAPI**: `0.139.0` (High-performance web API framework)
-- **Uvicorn**: `0.51.0` (ASGI web server)
-- **Starlette**: `1.3.1` (Core ASGI engine)
-- **Pydantic / Pydantic Settings**: `2.13.4` / `2.14.2` (Schema validation & settings management)
-
-### Database, ORM & Vectors
-- **PostgreSQL**: `14+` / `15+` with `pgvector` extension `0.5.0`
-- **SQLAlchemy**: `2.0.51` (Modern async/sync Python ORM)
-- **Alembic**: `1.18.5` (Database schema migrations)
-- **psycopg (v3)**: `3.3.4` (PostgreSQL driver)
-
-### Asynchronous Queue & Caching
-- **Redis**: `8.0.1` (In-memory cache & task broker)
-- **Celery**: `5.6.3` (Asynchronous task queue worker)
-- **SlowAPI**: `0.1.10` (Rate limiting middleware)
-
-### AI, Machine Learning & Document Extraction
-- **OpenAI Python SDK**: `2.45.0` (Connected via OpenRouter unified LLM API gateway)
-- **LangChain Core & Text Splitters**: `1.4.9` / `1.1.2` (Recursive character text splitting)
-- **PyTesseract / Pillow**: `0.3.13` / `12.3.0` (Optical Character Recognition)
-- **PDFPlumber / PyPDFium2 / PDF2Image**: `0.11.10` / `5.12.1` / `1.17.0` (PDF processing)
-- **Python-Docx**: `1.2.0` (Microsoft Word processing)
+### 🚀 Performance & Observability
+- **Redis Multi-Tier Caching:** Caching layer for search results, vector embeddings, and session state.
+- **Rate Limiting:** IP and User-scoped rate limits powered by `SlowAPI` and Redis.
+- **Prometheus Metrics:** Native `/metrics` endpoint measuring HTTP request throughput and duration histograms.
+- **Educational Logging:** Terminal execution tree banners, SQL audit logs, and diagnostic error reports.
 
 ---
 
-## 🏗️ 5. Architectural Diagram & Layers
+## 🛠️ Technology Stack
 
-```text
-               ┌────────────────────────────────────────────────────────┐
-               │              Browser / User Interface                  │
-               │         (Vanilla JS + Async Fetch API)                 │
-               └──────────────────────────┬─────────────────────────────┘
-                                          │ HTTP REST Requests
-                                          ▼
-               ┌────────────────────────────────────────────────────────┐
-               │                 FastAPI Application                    │
-               │   • Request ID & Response Banners (utils/helpers.py)   │
-               │   • EducationalLive Logger (utils/educational_logger)  │
-               │   • SlowAPI Rate Limiting (core/limiter.py)            │
-               └──────────────────────────┬─────────────────────────────┘
-                                          │
-                   ┌──────────────────────┴──────────────────────┐
-                   ▼                                             ▼
-     ┌──────────────────────────┐                  ┌──────────────────────────┐
-     │   Authentication Guard   │                  │  Prometheus Metrics Middleware│
-     │   (app/dependencies.py)  │                  │   (monitoring/metrics.py)│
-     └─────────────┬────────────┘                  └──────────────────────────┘
-                   │
-                   ▼
-     ┌────────────────────────────────────────────────────────────────────────┐
-     │                          API Router Layer                              │
-     │   /auth       → auth_routes.py    │   /documents → document_routes.py│
-     │   /sessions   → session_routes.py │   /search    → search_routes.py  │
-     │   /chat       → routes.py         │   /rag       → rag_routes.py     │
-     └────────────────────────────┬───────────────────────────────────────────┘
-                                  │
-                                  ▼
-     ┌────────────────────────────────────────────────────────────────────────┐
-     │                         Service Layer                                  │
-     │   • ChatbotService   • RAGService       • RetrievalService             │
-     │   • AuthService      • DocumentService  • VectorSearchService          │
-     └──────┬──────────────────────┬──────────────────────┬───────────────────┘
-            │                      │                      │
-            ▼                      ▼                      ▼
-┌──────────────────────┐ ┌────────────────────┐ ┌─────────────────────────────┐
-│  Repository Layer    │ │   Celery Broker    │ │    OpenRouter API Gateway   │
-│ • UserRepository     │ │   (Redis Queue)    │ │ • Model Inference           │
-│ • SessionRepository  │ └─────────┬──────────┘ │ • Text Vector Embeddings    │
-│ • MessageRepository  │           │            └─────────────────────────────┘
-│ • DocumentRepo       │           ▼
-│ • EmbeddingRepo      │ ┌────────────────────┐
-└───────────┬──────────┘ │ Celery Workers     │
-            │            │ • Document OCR     │
-            ▼            │ • Text Chunking    │
-┌──────────────────────┐ │ • Vector Embeddings│
-│ PostgreSQL + pgvector│ └────────────────────┘
-│ (Isolated User &     │
-│  Session Vectors)    │
-└──────────────────────┘
-```
-
----
-
-## 📂 6. Repository Folder Structure & Responsibilities
-
-```text
-Chatbot_Using_FastAPI_and_OpenRouterAPIKey/
-├── .env                              # Environment configuration & secret keys
-├── .gitignore                        # Git exclusion rules
-├── README.md                         # Project documentation
-├── alembic.ini                       # Alembic migration configuration
-├── requirements.txt                  # Python dependencies with exact versions
-│
-├── alembic/                          # Alembic Database Migration Scripts
-│   ├── env.py                        # Migration environment & model target metadata
-│   └── versions/                     # Migration version scripts (Tables, pgvector, etc.)
-│
-├── api/                              # HTTP API Endpoint Handlers (Routers)
-│   ├── auth_routes.py                # Signup, Login, Refresh Token, User Profile
-│   ├── document_routes.py            # Document Upload, Listing, and Deletion
-│   ├── rag_routes.py                 # RAG Debug, Context Inspection, Prompt Builder
-│   ├── routes.py                     # Primary Chat (/chat), Reset, and Health routes
-│   ├── search_routes.py              # Vector similarity search & chunk inspection
-│   └── session_routes.py             # Chat Session management & Message history
-│
-├── app/                              # Core Application Initialization
-│   ├── config.py                     # Application metadata (Name, Version, Description)
-│   ├── dependencies.py               # Dependency Injection Providers & Auth Guards
-│   ├── main.py                       # FastAPI Instance, Lifespan, Middleware, Static Files
-│   └── middleware.py                 # Custom Request/Response Logging Middleware
-│
-├── celery_app/                       # Background Asynchronous Task Processing
-│   ├── celery.py                     # Celery Client Instance & Redis Broker Setup
-│   └── tasks.py                      # Background Document Processing & Embedding Tasks
-│
-├── core/                             # System Core Utilities & Security
-│   ├── limiter.py                    # SlowAPI Rate Limiter instance setup
-│   ├── security.py                   # Password hashing (bcrypt) & verify functions
-│   └── settings.py                   # Pydantic BaseSettings loading .env configuration
-│
-├── database/                         # Database Access Layer
-│   ├── base.py                       # Declarative Base for SQLAlchemy Models
-│   ├── session.py                    # SQLAlchemy Engine & SessionLocal Factory
-│   ├── models/                       # SQLAlchemy Database Models
-│   │   ├── user.py                   # User account schema & credentials
-│   │   ├── session.py                # Chat session entity schema
-│   │   ├── message.py                # Scoped chat message history entity
-│   │   ├── document.py               # Uploaded document metadata entity
-│   │   ├── chunk.py                  # Extracted text chunk entity (Parent-Child)
-│   │   ├── chunk_metadata.py         # Key-value chunk metadata entity
-│   │   └── embedding.py              # pgvector vector storage entity
-│   └── repositories/                 # Data Access Object (DAO) Repository Classes
-│       ├── user_repository.py        # Database queries for Users
-│       ├── session_repository.py     # Database queries for Sessions
-│       ├── message_repository.py     # Database queries for Messages
-│       ├── document_repository.py    # Database queries for Documents
-│       ├── embedding_repository.py   # pgvector cosine similarity search queries
-│       ├── vector_repository.py      # Scoped Vector Data Access
-│       └── search_repository.py      # Document chunk search queries
-│
-├── loaders/                          # Document Readers & Text Extractor Adapters
-│   ├── base.py                       # BaseDocumentLoader abstract interface
-│   ├── pdf.py                        # PDF Loader (PDFPlumber + Tesseract OCR fallback)
-│   ├── docx.py                       # Microsoft Word (.docx) document loader
-│   ├── csv.py                        # Structured CSV spreadsheet loader
-│   ├── txt.py                        # Plain text loader
-│   └── markdown.py                   # Markdown (.md) document loader
-│
-├── monitoring/                       # System Metrics & Observability
-│   └── metrics.py                    # Prometheus Request Count & Latency Histograms
-│
-├── redis_client/                     # Caching & Rate Limiting Storage
-│   └── client.py                     # Redis Connection Manager & Helper Functions
-│
-├── schemas/                          # Pydantic Schemas for DTO Validation
-│   ├── auth.py                       # Auth Request/Response validation schemas
-│   ├── document.py                   # Document DTO schemas
-│   ├── rag.py                        # RAG Context, Citations & Telemetry schemas
-│   ├── request.py                    # Chat Request schemas
-│   ├── response.py                   # Chat Response schemas
-│   ├── search.py                     # Vector Search schemas
-│   └── session.py                    # Session DTO schemas
-│
-├── services/                         # Core Business Logic Layer
-│   ├── auth_service.py               # User authentication & token creation logic
-│   ├── chatbot_service.py            # Primary Chat orchestration & OpenRouter LLM call
-│   ├── chunking_service.py           # Text splitting & chunking logic
-│   ├── context_builder_service.py    # RAG context formatting service
-│   ├── document_service.py           # Document saving & deletion business logic
-│   ├── embedding_service.py          # Vector embedding generation via OpenRouter
-│   ├── grounding_service.py          # Grounded prompt enforcement service
-│   ├── health_service.py             # System component health checking
-│   ├── jwt_service.py                # Access & Refresh JWT signing/verification
-│   ├── loader_service.py             # File loader dispatcher service
-│   ├── metadata_service.py           # Metadata extraction service
-│   ├── prompt_builder_service.py     # System prompt formatting service
-│   ├── rag_service.py                # Phase 7 & 8 Advanced RAG orchestration
-│   ├── reranking_service.py          # Search result reranking service
-│   ├── retrieval_service.py          # Document chunk retrieval bridge service
-│   ├── session_service.py            # Chat session CRUD business logic
-│   ├── storage_service.py            # Disk storage provider wrapper
-│   ├── user_service.py               # User profile management & caching
-│   └── vector_search_service.py      # High-level vector search orchestration
-│
-├── static/                           # Single-Page Web Frontend Interface
-│   ├── index.html                    # Main HTML web application interface
-│   ├── css/                          # Application styles (main.css)
-│   └── js/                           # Modular Frontend Scripts (app.js, api.js, chat.js, documents.js)
-│
-├── storage/                          # Storage Backend System Providers
-│   ├── base.py                       # BaseStorageProvider abstract class
-│   └── local.py                      # Local filesystem storage provider implementation
-│
-├── uploaded_files/                   # Local file storage directory for uploads
-└── utils/                            # Shared Helper Utilities & Logging
-    ├── educational_logger.py         # Educational live-backend logging utility
-    └── helpers.py                    # Request ID propagation & ANSI log formatting
-```
-
----
-
-## ⚡ 7. Environment Configuration Guide
-
-Create a `.env` file in the root directory and configure the following parameters:
-
-| Parameter | Purpose & Description | Example Value | Default |
+| Category | Technology | Purpose | Version |
 | :--- | :--- | :--- | :--- |
-| `OPENROUTER_API_KEY` | Secret API key for OpenRouter LLM Gateway | `sk-or-v1-xxxxxxxx...` | *Required* |
-| `MODEL_NAME` | Primary LLM model for chat inference | `nvidia/nemotron-3-ultra-550b-a55b:free` | `nvidia/nemotron-3-ultra-550b-a55b:free` |
-| `BASE_URL` | OpenRouter API base URL | `https://openrouter.ai/api/v1` | `https://openrouter.ai/api/v1` |
-| `DATABASE_HOST` | PostgreSQL Database hostname | `localhost` | `localhost` |
-| `DATABASE_PORT` | PostgreSQL Database port | `5432` | `5432` |
-| `DATABASE_NAME` | PostgreSQL Database name | `chatbot_db` | `chatbot_db` |
-| `DATABASE_USER` | PostgreSQL Database username | `postgres` | `postgres` |
-| `DATABASE_PASSWORD` | PostgreSQL Database password | `your_secure_password` | *Required* |
-| `JWT_SECRET_KEY` | HMAC key for signing Access Tokens | `64-char-hex-string` | *Required* |
-| `JWT_REFRESH_SECRET_KEY`| Separate HMAC key for Refresh Tokens | `64-char-hex-string` | *Required* |
-| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifespan in minutes | `30` | `30` |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifespan in days | `7` | `7` |
-| `REDIS_HOST` | Redis Server hostname | `localhost` | `localhost` |
-| `REDIS_PORT` | Redis Server port | `6379` | `6379` |
-| `CELERY_BROKER_URL` | Redis URL for Celery Task Queue | `redis://localhost:6379/1` | `redis://localhost:6379/1` |
-| `CELERY_RESULT_BACKEND` | Redis URL for Celery Task Results | `redis://localhost:6379/2` | `redis://localhost:6379/2` |
-| `UPLOAD_DIRECTORY` | Disk directory for uploaded files | `./uploaded_files` | `./uploaded_files` |
-| `OCR_ENABLED` | Enable Tesseract OCR fallback | `true` | `true` |
-| `CHUNK_SIZE` | Max characters per text chunk | `1000` | `1000` |
-| `CHUNK_OVERLAP` | Character overlap between chunks | `200` | `200` |
-| `EMBEDDING_MODEL` | Embedding model identifier | `nvidia/nemotron-3-embed-1b:free` | `nvidia/nemotron-3-embed-1b:free` |
-| `VECTOR_DIMENSION` | Vector embedding dimension | `2000` | `2000` |
-| `ENABLE_QUERY_EXPANSION` | Phase 8 Advanced RAG Flag | `true` | `true` |
-| `ENABLE_HYDE` | Phase 8 Advanced RAG Flag | `true` | `true` |
-| `ENABLE_MULTI_QUERY` | Phase 8 Advanced RAG Flag | `true` | `true` |
-| `ENABLE_PARENT_CHILD` | Phase 8 Advanced RAG Flag | `true` | `true` |
+| **Language** | Python | Primary programming language | `3.12` |
+| **Web Framework** | FastAPI | Async high-performance REST API | `0.139.0` |
+| **ASGI Server** | Uvicorn | High-speed web server runner | `0.51.0` |
+| **Database** | PostgreSQL | Relational database engine | `14+ / 15+` |
+| **Vector Engine** | pgvector | Dense vector storage & HNSW similarity search | `0.5.0` |
+| **ORM & Migrations** | SQLAlchemy & Alembic | Database abstraction & schema migrations | `2.0.51` / `1.18.5` |
+| **Task Queue** | Celery | Asynchronous background task processing | `5.6.3` |
+| **Cache & Broker** | Redis | In-memory caching & Celery message broker | `8.0.1` |
+| **LLM Gateway** | OpenRouter / OpenAI SDK | Unified interface for LLM completions | `2.45.0` |
+| **Text Processing** | LangChain Text Splitters | Recursive character document chunking | `1.1.2` |
+| **OCR & Document Extraction** | PyTesseract, PDFPlumber, Docx | Text extraction from images and documents | `0.3.13` / `0.11.10` |
+| **Security & Auth** | Passlib (bcrypt), PyJWT | Password hashing & JWT token handling | `1.7.4` / `3.4.0` |
+| **Rate Limiting** | SlowAPI | Request throttling middleware | `0.1.10` |
+| **Metrics** | Prometheus Client | Application monitoring metrics | `0.25.0` |
 
 ---
 
-## 🔐 8. Authentication & Multi-Tenant Isolation Flow
+## 🏗️ System Architecture
 
-The application enforces security at both the network transport level and database query level:
+```mermaid
+flowchart TD
+    Client["Client / Web UI (Static JS)"] -->|HTTP REST Requests| FastAPI["FastAPI Application"]
+    FastAPI -->|Token Check| Auth["JWT Auth Middleware & Security"]
+    FastAPI -->|Enforce Limits| Limiter["SlowAPI Rate Limiter"]
+    
+    subgraph Agent Framework
+        FastAPI --> Planner["PlannerAgent (Semantic Intent & Multi-Step)"]
+        Planner --> Router["ToolRouter"]
+        Router -->|Capability Check| CalcTool["CalculatorTool (AST Validation)"]
+        Router -->|Capability Check| PyTool["PythonREPLTool (Sandbox)"]
+        Router -->|Capability Check| SearchTool["SearchTool (Web Search)"]
+        Router -->|Capability Check| RAGTool["RAGBridgeTool"]
+        Executor["ExecutorAgent"] -->|Runs Steps| Router
+    end
 
-```text
-[Client Request] ──(Bearer Access JWT)──> [OAuth2 Security Scheme]
-                                                    │
-                                                    ▼
-                                      [JWTService.verify_access_token()]
-                                                    │
-                                           Valid    │   Invalid
-                                      ┌─────────────┴────────────┐
-                                      ▼                          ▼
-                          [UserRepository.get_by_id()]    [HTTP 401 Unauthorized]
-                                      │
-                                      ▼
-                      [Set request.state.user = User]
-                                      │
-                                      ▼
-                 [Database Operations Filtered By User ID & Session ID]
-```
+    subgraph Memory & Context Layer
+        FastAPI --> Memory["MemoryService (Multi-Tier Chat Memory)"]
+        RAGTool --> Retrieval["RetrievalService"]
+        Retrieval --> VectorSearch["VectorSearchService"]
+    end
 
-1. **Dual Token Security**: Short-lived access tokens (30 mins) prevent long exposure, while long-lived refresh tokens (7 days) allow seamless session renewals.
-2. **Context Isolation**: Every document chunk and vector embedding in PostgreSQL is strictly bound to `user_id` and `session_id`. RAG vector queries apply mandatory relational filters:
-   ```sql
-   WHERE documents.user_id = :current_user_id 
-     AND documents.session_id = :current_session_id 
-     AND documents.status = 'COMPLETED'
-   ```
+    subgraph Data & Storage Layer
+        VectorSearch --> VectorRepo["EmbeddingRepository / VectorRepository"]
+        VectorRepo --> Postgres[("PostgreSQL DB + pgvector")]
+        FastAPI --> Repos["User / Session / Message Repositories"]
+        Repos --> Postgres
+        FastAPI --> RedisCache[("Redis Cache & Broker")]
+        Limiter --> RedisCache
+    end
 
----
+    subgraph Async Background Tasks
+        FastAPI -->|Dispatch Ingestion| Celery["Celery Worker"]
+        Celery --> RedisCache
+        Celery --> Loader["Loader & Chunking Service"]
+        Loader --> EmbedSvc["EmbeddingService"]
+        EmbedSvc -->|Save Chunks & Vectors| Postgres
+    end
 
-## 📄 9. Async Document Processing & Vector Pipeline Flow
-
-```text
-Upload API ──> Disk Storage ──> DB Record ('PENDING') ──> Dispatch Celery Task
-                                                                │
-  ┌─────────────────────────────────────────────────────────────┘
-  ▼
-[Celery Background Worker]
-  ├── 1. Loader Service (Extract text via PDFPlumber / Tesseract OCR)
-  ├── 2. Chunking Service (Split text into 1000-char chunks with overlap)
-  ├── 3. Metadata Service (Extract word count, headers, chunk index)
-  ├── 4. Embedding Service (Generate 2000-dim vectors via OpenRouter)
-  ├── 5. Database Save (Commit Chunks & Embeddings in Transaction)
-  └── 6. Status Update (Set Document Status to 'COMPLETED')
+    subgraph External LLM API
+        Executor --> OpenRouter["OpenRouter API Gateway"]
+        FastAPI --> OpenRouter
+    end
 ```
 
 ---
 
-## 🧠 10. RAG & Advanced RAG Architecture
+## 🔄 Project Workflow
 
-When a user asks a question in a chat session, the system executes the multi-stage **Advanced RAG Pipeline**:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Client / User
+    participant App as FastAPI App
+    participant Auth as JWT Dependency
+    participant Plan as Planner Agent
+    participant Route as Tool Router
+    participant Tool as Capability Tool (RAG/Search/Calc)
+    participant LLM as OpenRouter LLM API
+    participant DB as PostgreSQL / Redis
 
-```text
-           ┌──────────────────────────────────────────────┐
-           │          User Prompt / Question              │
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │           1. Query Expansion                 │
-           │  (Generates query variations for broad capture)│
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │        2. HyDE (Hypothetical Embeddings)     │
-           │  (Generates hypothetical answer for search)  │
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │        3. Vector Search (pgvector)           │
-           │ (Cosine similarity: 1 - distance <= threshold)│
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │        4. Parent-Child Context Retrieval     │
-           │  (Swaps small child chunk for full parent)   │
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │       5. Grounded Prompt Assembly            │
-           │  (Injects retrieved excerpts with sources)   │
-           └──────────────────────┬───────────────────────┘
-                                  │
-                                  ▼
-           ┌──────────────────────────────────────────────┐
-           │        6. OpenRouter LLM Inference           │
-           │      (Generates accurate grounded answer)    │
-           └──────────────────────────────────────────────┘
+    User->>App: POST /chat (Prompt + Session ID)
+    App->>Auth: Validate Bearer Access Token
+    Auth-->>App: Authenticated User Context
+    App->>DB: Persist User Message to DB
+    App->>Plan: Analyze Query & Generate ExecutionPlan
+    Plan-->>App: ExecutionPlan (Intent, Steps)
+    
+    loop For Each Step in Plan
+        App->>Route: route_and_execute(step.tool_name, tool_input, intent)
+        Route->>Tool: supports(tool_input, intent)
+        alt Tool Supported
+            Tool-->>Route: Execution Success Output
+        else Tool Unsupported
+            Tool-->>Route: Status: "skipped" (Graceful Skip)
+        end
+        Route-->>App: ToolExecutionResult
+    end
+
+    App->>DB: Retrieve Session Memory & RAG Context
+    App->>LLM: Send System Prompt + History + Tool Outputs + Query
+    LLM-->>App: Final AI Answer
+    App->>DB: Persist Assistant Response to DB
+    App-->>User: ChatResponse (Reply text + Model metadata)
 ```
 
 ---
 
-## 📡 11. Core REST API Endpoints Reference
+## 📁 Folder Structure
 
-### 🔐 Authentication (`/auth`)
-- `POST /auth/signup`: Register user (`SignupRequest` -> `SignupResponse`)
-- `POST /auth/login`: Authenticate user (`LoginRequest` -> `TokenResponse`)
-- `POST /auth/refresh`: Refresh access token (`RefreshTokenRequest` -> `TokenResponse`)
-- `POST /auth/logout`: Invalidate client session (`MessageResponse`)
-- `GET /auth/me`: Fetch authenticated user profile (Cache-Aside enabled)
-- `PUT /auth/me`: Update profile details (`UpdateProfileRequest`)
-
-### 💬 Chat & Sessions (`/chat`, `/sessions`)
-- `POST /chat`: Submit prompt & receive AI response (`ChatRequest` -> `ChatResponse`)
-- `POST /reset`: Reset active session history
-- `GET /history`: Fetch message history for active session
-- `GET /sessions`: List all user chat sessions (`SessionListResponse`)
-- `POST /sessions`: Create a new session (`CreateSessionRequest` -> `SessionResponse`)
-- `GET /sessions/{id}`: Retrieve specific session details
-- `PUT /sessions/{id}`: Rename session title
-- `DELETE /sessions/{id}`: Delete session & associated messages
-- `GET /sessions/{id}/messages`: List all chronological messages in session
-
-### 📄 Document & Search (`/documents`, `/search`, `/rag`)
-- `POST /documents/upload`: Upload document with optional `session_id` form field
-- `GET /documents`: List user documents (filtered by `session_id`)
-- `DELETE /documents/{id}`: Delete document & underlying vector embeddings
-- `POST /search`: Execute vector similarity search on document chunks
-- `POST /rag/debug`: Inspect RAG execution pipeline, retrieved chunks & prompt
+```
+Chatbot_Using_FastAPI_and_OpenRouterAPIKey/
+├── agents/                       # Intelligent Agentic AI System
+│   ├── executor.py               # Executes multi-step plans sequentially
+│   ├── planner.py                # Semantic intent classifier & task decomposer
+│   ├── tool_router.py            # Validates tool supports() & routes execution
+│   ├── state/
+│   │   └── agent_state.py        # LangGraph State Schema for agent nodes
+│   └── tools/
+│       ├── calculator_tool.py    # Math & financial AST evaluator with supports()
+│       ├── python_repl_tool.py   # Sandboxed Python REPL execution environment
+│       ├── search_tool.py        # Real-time DuckDuckGo web search adapter
+│       └── rag_bridge_tool.py    # RAG document retrieval tool bridge
+├── api/                          # FastAPI Endpoint Routers
+│   ├── auth_routes.py            # User registration, login, refresh, logout
+│   ├── document_routes.py        # Document upload, listing, and deletion
+│   ├── rag_routes.py             # RAG debug, prompt, and reranking endpoints
+│   ├── routes.py                 # Core /chat, /history, /reset, /health endpoints
+│   ├── search_routes.py          # Vector search, chunk inspection, and retrieval
+│   └── session_routes.py         # Chat session CRUD endpoints
+├── app/                          # Application Configuration & Dependencies
+│   ├── config.py                 # Application metadata constants
+│   ├── dependencies.py           # Centralized FastAPI Dependency Injection (DI)
+│   ├── main.py                   # FastAPI app instance, middleware & lifespan
+│   └── middleware.py             # Custom request telemetry & execution tree logger
+├── celery_app/                   # Asynchronous Background Processing
+│   ├── celery.py                 # Celery worker initialization & Redis broker config
+│   └── tasks.py                  # Ingestion pipeline tasks (Load -> Chunk -> Embed)
+├── core/                         # Core Utilities & Settings
+│   ├── limiter.py                # SlowAPI rate limiter configuration
+│   ├── security.py               # Password hashing & JWT token utilities
+│   └── settings.py               # Pydantic v2 BaseSettings configuration
+├── database/                     # Database Access Layer
+│   ├── base.py                   # SQLAlchemy Base declarative class
+│   ├── session.py                # Engine initialization & SessionLocal factory
+│   ├── models/                   # SQLAlchemy Database Models
+│   │   ├── user.py               # User authentication model
+│   │   ├── session.py            # Chat session model
+│   │   ├── message.py            # Chat message history model
+│   │   ├── document.py           # Uploaded document metadata model
+│   │   ├── chunk.py              # Extracted text chunk model
+│   │   ├── chunk_metadata.py     # Structural chunk metadata model
+│   │   └── embedding.py          # pgvector embedding model (dim=768)
+│   └── repositories/             # Repository Pattern Classes
+│       ├── user_repository.py    # User DB operations
+│       ├── session_repository.py # Chat session DB operations
+│       ├── message_repository.py # Chat message DB operations
+│       ├── document_repository.py# Document DB operations
+│       ├── chunk_repository.py   # Chunk DB operations
+│       ├── metadata_repository.py# Chunk metadata DB operations
+│       ├── embedding_repository.py# Dense vector storage DB operations
+│       └── vector_repository.py   # pgvector HNSW search queries
+├── loaders/                      # Document Text Loaders
+│   ├── base.py                   # Base document loader interface
+│   ├── csv.py                    # CSV file parser loader
+│   ├── docx.py                   # Word document loader
+│   ├── markdown.py               # Markdown file loader
+│   ├── pdf.py                    # PDF loader with PyPDFium2 & Tesseract OCR fallback
+│   └── txt.py                    # Plain text loader
+├── monitoring/                   # Observability & Metrics
+│   └── metrics.py                # Prometheus HTTP counter & histogram metrics
+├── redis_client/                 # Redis Infrastructure
+│   └── client.py                 # Async/Sync Redis connection pool manager
+├── schemas/                      # Pydantic Data Models (DTOs)
+│   ├── agent.py                  # Agent plan, step, and tool result schemas
+│   ├── auth.py                   # Auth requests and token response schemas
+│   ├── request.py                # Chat and search payload request schemas
+│   └── response.py               # Chat, history, and system response schemas
+├── services/                     # Business Logic Services Layer
+│   ├── auth_service.py           # Authentication business logic
+│   ├── cache_service.py          # Redis cache helper service
+│   ├── chatbot_service.py        # Main chat lifecycle orchestrator
+│   ├── chunking_service.py       # Recursive text splitting logic
+│   ├── citation_service.py       # Source attribution builder
+│   ├── document_service.py       # Document management logic
+│   ├── embedding_service.py      # Embedding generation service
+│   ├── memory_service.py         # Multi-tiered chat session memory
+│   ├── prompt_builder_service.py # Prompt assembly service
+│   ├── rag_service.py            # Advanced RAG orchestrator service
+│   ├── retrieval_service.py      # RAG context retrieval service
+│   └── vector_search_service.py  # Cosine similarity vector search service
+├── static/                       # Frontend Web UI Assets
+│   ├── index.html                # Modern dark-mode Chat interface
+│   ├── script.js                 # Vanilla JavaScript API client logic
+│   └── style.css                 # Custom CSS design system & styling
+├── storage/                      # File Storage Providers
+│   ├── base.py                   # Abstract storage interface
+│   └── local.py                  # Local disk storage implementation
+├── utils/                        # Utilities & Logging
+│   ├── educational_logger.py     # Terminal educational logging system
+│   └── helpers.py                # Request ID ContextVar & terminal color helpers
+├── alembic.ini                   # Alembic database migration config
+├── migrations/                   # Database migration scripts
+└── requirements.txt              # Production Python dependencies
+```
 
 ---
 
-## ⚙️ 12. Complete Command Reference
+## 📥 Installation Guide
 
-This section outlines **every terminal command** used to set up, operate, and maintain the project.
+### Prerequisites
+- **Python:** `3.10` or higher (Tested on Python `3.12`)
+- **PostgreSQL:** `14+` or `15+` with `pgvector` extension installed
+- **Redis:** `6.x` or higher running locally or remotely
+- **Tesseract OCR (Optional for PDF OCR):** `sudo apt install tesseract-ocr`
 
-### Environment & Dependency Setup
-
+### Step 1: Clone Repository
 ```bash
-# 1. Create Python Virtual Environment
-# Purpose: Isolates project dependencies from system Python packages.
+git clone https://github.com/SharmaVaibhav976531/AIChatbotFastAPIBackend.git
+cd AIChatbotFastAPIBackend
+```
+
+### Step 2: Set Up Virtual Environment
+```bash
 python3 -m venv vir_env
-
-# 2. Activate Virtual Environment
-# Linux / macOS:
 source vir_env/bin/activate
-# Windows PowerShell:
-# .\vir_env\Scripts\Activate.ps1
+```
 
-# 3. Upgrade Pip Package Manager
+### Step 3: Install Required Dependencies
+```bash
 pip install --upgrade pip
-
-# 4. Install Project Dependencies
 pip install -r requirements.txt
 ```
 
-### PostgreSQL Database & Vector Extensions
-
+### Step 4: Create Environment File
+Copy the sample environment configuration file:
 ```bash
-# 1. Access PostgreSQL CLI
-psql -U postgres
+cp .env.example .env
+```
 
-# 2. Create Application Database (inside psql)
+### Step 5: Initialize PostgreSQL & Enable pgvector
+Create a PostgreSQL database and enable the `vector` extension:
+```sql
 CREATE DATABASE chatbot_db;
-
-# 3. Enable pgvector Extension (inside psql target DB)
-\c chatbot_db
+\c chatbot_db;
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-### Database Schema Migrations (Alembic)
-
+### Step 6: Run Database Migrations
+Apply Alembic migrations to create tables and vector indexes:
 ```bash
-# 1. Generate Automatic Migration Script
-# Purpose: Compares SQLAlchemy models against current DB schema and generates a revision script.
-alembic revision --autogenerate -m "add_parent_id_to_document_chunks"
-
-# 2. Apply Migrations to Target Database
-# Purpose: Upgrades database schema to the latest revision.
 alembic upgrade head
+```
 
-# 3. Rollback Previous Migration
-# Purpose: Reverts database schema by one revision step.
+---
+
+## ⚙️ Environment Variables
+
+The application relies on `pydantic-settings` to parse configuration variables from `.env`:
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :---: | :--- |
+| `DATABASE_URL` | PostgreSQL connection string with `psycopg` driver | Yes | `postgresql+psycopg://postgres:postgres@localhost:5432/chatbot_db` |
+| `REDIS_URL` | Redis connection URL | Yes | `redis://localhost:6379/0` |
+| `OPENROUTER_API_KEY` | OpenRouter API Key for LLM completion calls | Yes | `sk-or-v1-...` |
+| `SECRET_KEY` | Cryptographic secret key for signing JWT tokens | Yes | `super-secret-key-change-in-production` |
+| `ALGORITHM` | JWT signing algorithm | No | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifespan in minutes | No | `30` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifespan in days | No | `7` |
+| `EMBEDDING_MODEL` | HuggingFace / OpenRouter embedding model | No | `thenlper/gte-base` |
+| `EMBEDDING_DIMENSION` | Dimension of embedding vectors | No | `768` |
+| `MODEL_NAME` | Primary LLM model for completion | No | `mistralai/mistral-7b-instruct:free` |
+| `UPLOAD_DIRECTORY` | Disk folder for uploaded files | No | `./uploaded_files` |
+| `ENABLE_PLANNER` | Enable AI Agent Planner & Tool Router | No | `true` |
+| `ENABLE_MEMORY` | Enable Multi-Tier Chat Memory Service | No | `true` |
+| `ENABLE_HYDE` | Enable Hypothetical Document Embeddings in RAG | No | `false` |
+| `ENABLE_RERANKING` | Enable RAG Context Reranking | No | `false` |
+
+---
+
+## 💾 Database & Migrations
+
+### Database Schema Architecture
+The database layer uses SQLAlchemy 2.0 with PostgreSQL `pgvector`:
+- **`users`**: Manages user accounts, email credentials, and hashed passwords (`bcrypt`).
+- **`chat_sessions`**: Session records associated with a specific user ID.
+- **`messages`**: Chat history entries (`user` / `assistant` role, model name, tokens).
+- **`documents`**: Metadata for uploaded files (filename, hash, MIME type, upload status).
+- **`chunks`**: Split text passages linked to parent documents.
+- **`chunk_metadata`**: Page numbers, section headings, and extracted keywords per chunk.
+- **`embeddings`**: 768-dimensional dense vector representations stored using `pgvector` with HNSW cosine index (`vector_cosine_ops`).
+
+### Migration Workflow (Alembic)
+Generate a new migration script:
+```bash
+alembic revision --autogenerate -m "Add new column"
+```
+
+Apply migrations:
+```bash
+alembic upgrade head
+```
+
+Rollback last migration:
+```bash
 alembic downgrade -1
 ```
 
-### Infrastructure Services (Redis, Celery, FastAPI)
+---
 
+## 🔒 Authentication & Security
+
+1. **Password Encryption:** Uses `Passlib` with `bcrypt` salt hashing before saving to PostgreSQL.
+2. **Dual-Token JWT Architecture:**
+   - **Access Token:** Short-lived (30 min) bearer token used for endpoint authorization.
+   - **Refresh Token:** Long-lived (7 days) token used to mint new access tokens without requiring re-login.
+3. **Protected Route Access:** Endpoints require `Depends(get_current_active_user)` dependency injection to retrieve the authenticated user.
+4. **Sandboxed Code Execution:** The `PythonREPLTool` blocks AST nodes referencing `os`, `sys`, `subprocess`, `socket`, `builtins`, or `eval` to prevent remote code execution vulnerabilities.
+
+---
+
+## 🧠 AI & RAG Pipeline
+
+```
+User Prompt ──► Request Sanitization ──► Multi-Tier Memory Retrieval
+                                              │
+                                              ▼
+Context Synthesis ◄── Reranking ◄── Vector Search ◄── Embedding Generation
+        │
+        ▼
+Advanced Prompt Construction ──► OpenRouter LLM ──► Persist Response ──► Client Output
+```
+
+1. **Document Upload & OCR:** Documents uploaded to `/documents/upload` undergo text extraction using format-specific loaders or Tesseract OCR.
+2. **Chunking & Storage:** `ChunkingService` splits raw text into overlapping passages (e.g., 500 characters, 50-character overlap).
+3. **Vector Generation:** `EmbeddingService` converts text chunks into 768-dimensional floating point vectors via HuggingFace or OpenRouter embedding endpoints.
+4. **Similarity Search:** Cosine similarity vector search is executed via `EmbeddingRepository.search_similar_chunks()` querying the HNSW index.
+5. **Context Reranking & Grounding:** Retrieved chunks are reranked, formatted into a strict grounding system prompt, and submitted to OpenRouter.
+
+---
+
+## 🤖 AI Agent Workflow & Tool Routing
+
+The application incorporates a multi-step Agentic execution loop:
+
+```
+                          ┌────────────────────────┐
+                          │    User Prompt Input   │
+                          └───────────┬────────────┘
+                                      │
+                                      ▼
+                          ┌────────────────────────┐
+                          │      PlannerAgent      │
+                          │ (Semantic Classifier)  │
+                          └───────────┬────────────┘
+                                      │
+                                      ▼
+                          ┌────────────────────────┐
+                          │     ExecutionPlan      │
+                          │ (Intent, Steps, Tools) │
+                          └───────────┬────────────┘
+                                      │
+                                      ▼
+                          ┌────────────────────────┐
+                          │     ExecutorAgent      │
+                          └───────────┬────────────┘
+                                      │
+                  ┌───────────────────┼───────────────────┐
+                  ▼                   ▼                   ▼
+          ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+          │CalculatorTool │   │  SearchTool   │   │ RAGBridgeTool │
+          │(supports Check)   │(supports Check)   │(supports Check)
+          └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
+                  │                   │                   │
+                  └───────────────────┼───────────────────┘
+                                      │
+                                      ▼
+                          ┌────────────────────────┐
+                          │ Tool Execution Results │
+                          │ (Status: success/skip) │
+                          └───────────┬────────────┘
+                                      │
+                                      ▼
+                          ┌────────────────────────┐
+                          │ OpenRouter LLM Answer  │
+                          └────────────────────────┘
+```
+
+### Supported Agent Tools
+1. **`CalculatorTool`**: Performs mathematical formula evaluations. Features AST parsing dry-runs via `supports()` to safely skip natural language queries without throwing exceptions.
+2. **`PythonREPLTool`**: Executes raw Python snippets in an isolated scope. Validates syntax using `ast.parse()`.
+3. **`SearchTool`**: Fetches real-time web news and facts using DuckDuckGo search adapters.
+4. **`RAGBridgeTool`**: Queries internal user documents and vector store contexts.
+
+---
+
+## 📊 Logging & Diagnostic System
+
+The project features a built-in **Educational Live-Backend Logging System** (`utils/educational_logger.py`). Terminal output displays formatted telemetry:
+
+- **Architectural Banners:** Highlights file entry points and component responsibilities.
+- **Function Entry/Exit Telemetry:** Logs parameters, latency in milliseconds, and exit status.
+- **SQL Audit Logs:** Details repository database operations, executed SQL statements, row counts, and latency.
+- **Execution Tree:** Renders an end-of-request visual execution tree showing only the components invoked during request processing.
+
+---
+
+## ⚡ Redis & Caching Infrastructure
+
+Redis is utilized for caching and rate-limiting operations:
+- **Search Result Cache:** Caches DuckDuckGo web search responses to minimize external API calls.
+- **Embedding Cache:** Avoids re-computing vector embeddings for duplicate text passages.
+- **Session & User Profile Cache:** Speeds up user authentication checks in `get_current_active_user`.
+- **Celery Task Broker:** Serves as the message transport queue for background document processing workers.
+
+---
+
+## ⚙️ Asynchronous Celery Tasks
+
+Heavy tasks are offloaded to background Celery workers:
+- **`process_document_task`**: Orchestrates text extraction, cleaning, chunking, metadata extraction, embedding generation, and vector insertion.
+- **`cleanup_expired_sessions_task`**: Scheduled maintenance task for purging expired session data.
+- **`simulate_heavy_rag_processing_task`**: Routed to `heavy_queue` for isolated background processing.
+
+Run Celery worker:
 ```bash
-# 1. Start Redis Server
-redis-server
-
-# 2. Verify Redis Health
-redis-cli ping
-# Expected Output: PONG
-
-# 3. Start Celery Asynchronous Worker
-# Purpose: Processes document text extraction, OCR, and vector embedding generation in background.
 celery -A celery_app.celery worker --loglevel=info
+```
 
-# 4. Start FastAPI Application Server
-# Purpose: Runs Uvicorn ASGI server with live reload for development.
+---
+
+## 📡 API Documentation
+
+FastAPI automatically exposes interactive OpenAPI documentation:
+- **Swagger UI:** `http://127.0.0.1:8000/docs`
+- **ReDoc:** `http://127.0.0.1:8000/redoc`
+
+### Core Endpoints Summary
+
+| Category | Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- | :---: |
+| **System** | `GET` | `/health` | Application health check & service status | No |
+| **System** | `GET` | `/metrics` | Prometheus metrics endpoint | No |
+| **Auth** | `POST` | `/auth/signup` | Register new user account | No |
+| **Auth** | `POST` | `/auth/login` | Authenticate & receive OAuth2 tokens | No |
+| **Auth** | `POST` | `/auth/refresh` | Mint new access token using refresh token | No |
+| **Auth** | `POST` | `/auth/logout` | Revoke user authentication session | Yes |
+| **Auth** | `GET` | `/auth/me` | Retrieve authenticated user profile | Yes |
+| **Sessions** | `GET` | `/sessions` | List user chat sessions | Yes |
+| **Sessions** | `POST` | `/sessions` | Create new chat session | Yes |
+| **Sessions** | `GET` | `/sessions/{id}` | Retrieve specific session details | Yes |
+| **Sessions** | `DELETE`| `/sessions/{id}` | Delete chat session & message history | Yes |
+| **Chat** | `POST` | `/chat` | Submit message to AI Agent & receive reply | Yes |
+| **Chat** | `GET` | `/history` | Retrieve conversation history | Yes |
+| **Chat** | `POST` | `/reset` | Clear active session history | Yes |
+| **Documents**| `POST` | `/documents/upload` | Upload document for async ingestion | Yes |
+| **Documents**| `GET` | `/documents` | List uploaded user documents | Yes |
+| **Documents**| `DELETE`| `/documents/{id}` | Delete document and associated chunks | Yes |
+| **Search** | `POST` | `/search` | Trigger web search query | Yes |
+| **Search** | `POST` | `/vector-search`| Execute direct pgvector similarity search | Yes |
+| **Search** | `POST` | `/retrieve` | Retrieve grounded RAG context passages | Yes |
+| **RAG Debug**| `POST` | `/rag/debug` | Inspect full RAG pipeline telemetry | Yes |
+
+---
+
+## 🧪 Example Requests & Responses
+
+### 1. User Signup (`POST /auth/signup`)
+```bash
+curl -X POST "http://127.0.0.1:8000/auth/signup" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "user@example.com",
+       "username": "johndoe",
+       "password": "SecurePassword123!"
+     }'
+```
+**Response (201 Created):**
+```json
+{
+  "id": "9f18b666-df89-47ae-bec2-c8699758af3a",
+  "email": "user@example.com",
+  "username": "johndoe",
+  "is_active": true,
+  "created_at": "2026-07-20T02:00:00Z"
+}
+```
+
+### 2. User Login (`POST /auth/login`)
+```bash
+curl -X POST "http://127.0.0.1:8000/auth/login" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=johndoe&password=SecurePassword123!"
+```
+**Response (200 OK):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "d3b07384d113edec49eaa6238ad5ff00...",
+  "token_type": "bearer"
+}
+```
+
+### 3. Send AI Agent Chat Message (`POST /chat`)
+```bash
+curl -X POST "http://127.0.0.1:8000/chat" \
+     -H "Authorization: Bearer <ACCESS_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "message": "Calculate compound interest on $1000 at 5% for 2 years",
+       "session_id": "c8699758-df89-47ae-bec2-c8699758af3a"
+     }'
+```
+**Response (200 OK):**
+```json
+{
+  "reply": "The compound interest on $1,000 at an annual interest rate of 5% compounded annually for 2 years is $102.50, bringing the total amount to $1,102.50.",
+  "model": "mistralai/mistral-7b-instruct:free"
+}
+```
+
+---
+
+## 🏃 Running & Testing
+
+### Running the FastAPI Development Server
+```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+Access the static Web Interface at: `http://127.0.0.1:8000`
 
----
-
-## 🚀 13. Step-by-Step Local Setup Walkthrough
-
-Follow these steps to get the platform running locally:
-
+### Running the Celery Background Task Worker
 ```bash
-# Step 1: Clone Repository
-git clone https://github.com/SharmaVaibhav976531/AIChatbotFastAPIBackend.git
-cd AIChatbotFastAPIBackend
-
-# Step 2: Initialize Virtual Environment & Dependencies
-python3 -m venv vir_env
-source vir_env/bin/activate
-pip install -r requirements.txt
-
-# Step 3: Configure Environment Variables
-cp .env.example .env
-# Open .env and fill in OPENROUTER_API_KEY and DATABASE_PASSWORD
-
-# Step 4: Run Database Migrations
-alembic upgrade head
-
-# Step 5: Start Redis & Celery (In separate terminal windows)
-redis-server
 celery -A celery_app.celery worker --loglevel=info
+```
 
-# Step 6: Launch FastAPI Server
-uvicorn app.main:app --reload
+### Running Automated Test Suite
+Examine agent planner and router capabilities:
+```bash
+python -c "
+from agents.planner import PlannerAgent
+from agents.tool_router import ToolRouter
+from agents.executor import ExecutorAgent
+import uuid
 
-# Step 7: Access Web Applications
-# • User Web UI   : http://127.0.0.1:8000
-# • Interactive API Docs (Swagger): http://127.0.0.1:8000/docs
+planner = PlannerAgent()
+router = ToolRouter()
+executor = ExecutorAgent(router)
+
+plan = planner.create_plan('245*876')
+results = executor.execute_plan(plan, user_id=uuid.uuid4())
+print(results)
+"
 ```
 
 ---
 
-## 🔧 14. Troubleshooting & Common Issues
+## 🖼️ Screenshots & UI Placeholders
 
-| Issue / Error | Cause | Recommended Solution |
-| :--- | :--- | :--- |
-| `NameError: name 'Vector' is not defined` | Missing import in Alembic script | Ensure `from pgvector.sqlalchemy import Vector` is present in migration files. |
-| `400 Bad Request` during embedding generation | Dimension mismatch between model and DB | Confirm `EMBEDDING_MODEL` returns vector dimensions matching `VECTOR_DIMENSION` (e.g., 2000). |
-| `RedisConnectionError: Error 111 connecting to localhost:6379` | Redis server not started | Run `redis-server` in terminal or check service status using `redis-cli ping`. |
-| `413 Payload Too Large` on file upload | Upload size exceeds configured threshold | Increase `MAX_FILE_SIZE_MB` in `.env`. |
-| `Celery Task Pending Indefinitely` | Celery worker not running | Ensure `celery -A celery_app.celery worker --loglevel=info` is active in background. |
+| Authentication Interface | Interactive Chat Interface |
+| :---: | :---: |
+| ![Auth Interface](static/icons/login_mockup.png) <br> *JWT-secured login and user registration modal.* | ![Chat Interface](static/icons/chat_mockup.png) <br> *Session-scoped chat window with real-time response rendering.* |
 
----
-
-## 🗺️ 15. Development Roadmap
-
-- [x] **Phase 1-3**: Authentication, JWT tokens, Multi-Session Chat, PostgreSQL Repositories.
-- [x] **Phase 4**: Redis Caching, SlowAPI Rate Limiting, Celery Async Worker Setup.
-- [x] **Phase 5**: Document Processing Pipeline, Loaders (PDF, DOCX, CSV, TXT, MD), Tesseract OCR.
-- [x] **Phase 6**: Vector Embeddings & `pgvector` Cosine Distance Similarity Search.
-- [x] **Phase 7-8**: Advanced RAG (Query Expansion, HyDE, Multi-Query, Parent-Child, Citations).
-- [x] **Phase 9**: Live Educational Live-Backend Logging Utility (`EducationalLogger`).
-- [ ] **Phase 10**: Full-Text BM25 Hybrid Vector Search Integration.
-- [ ] **Phase 11**: Administrative Telemetry Dashboard & Superuser Management UI.
+| Document Ingestion | RAG Inspection Telemetry |
+| :---: | :---: |
+| ![Upload Workspace](static/icons/upload_mockup.png) <br> *Drag-and-drop document upload with ingestion status.* | ![RAG Telemetry](static/icons/rag_debug_mockup.png) <br> *Detailed vector similarity score & document citation viewer.* |
 
 ---
 
-## 📜 16. License & Author
+## ⚠️ Error Handling
 
-### License
-This project is licensed under the **MIT License** — feel free to use, modify, and distribute for educational or commercial purposes.
+The application uses standard HTTP status codes and structured Pydantic error responses:
 
-### Author
-- **Name**: Vaibhav Sharma
-- **GitHub**: [@SharmaVaibhav976531](https://github.com/SharmaVaibhav976531)
-- **Repository**: [AIChatbotFastAPIBackend](https://github.com/SharmaVaibhav976531/AIChatbotFastAPIBackend)
+- **`400 Bad Request`**: Validation failures or malformed query payloads.
+- **`401 Unauthorized`**: Missing, expired, or invalid JWT bearer tokens.
+- **`422 Unprocessable Entity`**: Pydantic schema validation failures.
+- **`429 Too Many Requests`**: Rate limit exceeded (managed via `SlowAPI`).
+- **`503 Service Unavailable`**: External service timeouts or database connection failures.
+
+---
+
+## 🔐 Security Best Practices
+
+- **Zero Hardcoded Secrets:** All credentials loaded dynamically via `.env` and Pydantic Settings.
+- **No Unsafe Code Evaluation:** Math expressions evaluated using constrained AST whitelists; Python REPL executes within an isolated, stripped global namespace.
+- **Scoped User Access:** DB repositories filter all document and session queries by `user_id`.
+
+---
+
+## ⚡ Performance Optimization
+
+- **HNSW Vector Indexing:** Employs `pgvector` Hierarchical Navigable Small World (`hnsw`) indexing for sub-millisecond similarity lookups over dense embeddings.
+- **Connection Pooling:** SQLAlchemy `QueuePool` and Redis connection pools prevent connection creation overhead.
+- **Async Execution:** Asynchronous request handling via `asyncio` and Uvicorn ASGI workers.
+
+---
+
+## 🧩 Design Patterns Applied
+
+- **Repository Pattern:** Separates database access code (`database/repositories/`) from FastAPI route handlers.
+- **Service Layer Pattern:** Encapsulates core domain business logic (`services/`) into reusable service classes.
+- **Dependency Injection (DI):** Uses FastAPI `Depends()` for injecting services, database sessions, and authenticated user contexts.
+- **Adapter Pattern:** Implemented in `RAGBridgeTool`, `CalculatorTool`, and `SearchTool` to standardize tool execution interfaces for `ToolRouter`.
+
+---
+
+## 🚀 Future Improvements Checklist
+
+- [ ] Add Hybrid Search (combining BM25 keyword matching with dense `pgvector` embeddings).
+- [ ] Implement Server-Sent Events (SSE) / WebSockets for streaming LLM responses.
+- [ ] Add support for Multi-Agent Collaboration using LangGraph state machines.
+- [ ] Implement automated RAG evaluation metrics using Ragas / TruLens framework.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork the Repository:** Create a personal fork of the project.
+2. **Create a Feature Branch:** `git checkout -b feature/amazing-feature`
+3. **Commit Changes:** `git commit -m "Add amazing feature"`
+4. **Push to Branch:** `git push origin feature/amazing-feature`
+5. **Open a Pull Request:** Submit a PR against the `main` branch with detailed explanations.
+
+---
+
+## 📜 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## 👨‍💻 Author
+
+**Vaibhav Sharma**
+- **GitHub:** [@SharmaVaibhav976531](https://github.com/SharmaVaibhav976531)
+- **Project Repository:** [AIChatbotFastAPIBackend](https://github.com/SharmaVaibhav976531/AIChatbotFastAPIBackend)
