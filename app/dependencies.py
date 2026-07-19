@@ -31,10 +31,23 @@ from services.rag_service import RAGService
 from database.repositories.embedding_repository import EmbeddingRepository
 from database.repositories.vector_repository import VectorRepository
 from database.repositories.search_repository import SearchRepository
+from utils.educational_logger import EducationalLogger
 import uuid
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Log file execution details for architecture learning
+EducationalLogger.log_file_execution(
+    file_name="app/dependencies.py",
+    purpose="Centralized Dependency Injection Provider for FastAPI routes.",
+    responsibilities=[
+        "Inject database sessions into repositories",
+        "Inject repositories into service layer instances",
+        "Validate OAuth2 Bearer JWT tokens and authenticate users",
+        "Instantiate singleton and per-request services for routes"
+    ]
+)
 
 loader_service = LoaderService() # Initialize the loader service (Singleton)
 settings = get_settings()  # Initialize the settings (Singleton)
@@ -190,9 +203,18 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     user_repo: UserRepository = Depends(get_user_repository)
 ) -> User:
+    start_time = EducationalLogger.log_function_enter(
+        file_name="app/dependencies.py",
+        class_name=None,
+        func_name="get_current_user",
+        purpose="Authenticate request using Bearer JWT token and fetch user from DB.",
+        input_params={"token": f"{token[:15]}..." if token else None}
+    )
+    
     # 1. Verify the token
     payload = JWTService.verify_access_token(token)
     if not payload:
+        EducationalLogger.log_function_exit("app/dependencies.py", None, "get_current_user", "Invalid Token", start_time, "FAILED")
         logger.warning("[AUTH-DEP] Invalid or expired access token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -203,6 +225,7 @@ def get_current_user(
     # 2. Extract user ID from token claims
     user_id_str = payload.get("sub")
     if not user_id_str:
+        EducationalLogger.log_function_exit("app/dependencies.py", None, "get_current_user", "Missing sub claim", start_time, "FAILED")
         logger.warning("[AUTH-DEP] Token missing 'sub' claim")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -222,6 +245,7 @@ def get_current_user(
     
     user = user_repo.get_user_by_id(user_id)
     if not user:
+        EducationalLogger.log_function_exit("app/dependencies.py", None, "get_current_user", f"User {user_id} not found", start_time, "FAILED")
         logger.warning(f"[AUTH-DEP] User from token not found: {user_id}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -229,6 +253,7 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    EducationalLogger.log_function_exit("app/dependencies.py", None, "get_current_user", f"User(username='{user.username}')", start_time, "SUCCESS")
     return user
 
 
